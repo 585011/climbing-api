@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: climbing-project
+
+  datasource:
+    url: jdbc:postgresql://localhost:3306/climbing
+    username: climb_user
+    password: climb_password
+    driver-class-name: org.postgresql.Driver
