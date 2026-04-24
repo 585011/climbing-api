@@ -66,4 +66,37 @@ public class WallRepository {
         """;
         return jdbcTemplate.query(sql, WALL_ROW_MAPPER, id).stream().findFirst();
     }
+
+    public Wall create(Wall wall) {
+        String sql = """
+                INSERT INTO walls (
+                    area_id,
+                    name,
+                    description,
+                    latitude,
+                    longitude,
+                    approach_info
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING id,
+                          area_id,
+                          name,
+                          description,
+                          latitude,
+                          longitude,
+                          approach_info,
+                          created_at
+                """;
+
+        return jdbcTemplate.queryForObject(
+                sql,
+                WALL_ROW_MAPPER,
+                wall.getAreaId(),
+                wall.getName(),
+                wall.getDescription(),
+                wall.getLatitude(),
+                wall.getLongitude(),
+                wall.getApproachInfo()
+        );
+    }
 }

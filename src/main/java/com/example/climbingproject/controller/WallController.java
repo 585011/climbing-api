@@ -1,13 +1,20 @@
 package com.example.climbingproject.controller;
 
-import com.example.climbingproject.model.Wall;
+import com.example.climbingproject.dto.CreateWallRequest;
+import com.example.climbingproject.dto.RouteResponse;
+import com.example.climbingproject.dto.WallResponse;
+import com.example.climbingproject.mapper.RouteMapper;
+import com.example.climbingproject.mapper.WallMapper;
 import com.example.climbingproject.service.WallService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -16,22 +23,37 @@ import java.util.List;
 public class WallController {
 
     private final WallService wallService;
+    private final WallMapper wallMapper;
+    private final RouteMapper routeMapper;
 
-    public WallController(WallService wallService) {
+    public WallController(WallService wallService, WallMapper wallMapper, RouteMapper routeMapper) {
         this.wallService = wallService;
+        this.wallMapper = wallMapper;
+        this.routeMapper = routeMapper;
     }
 
     @GetMapping
-    public List<Wall> getAll() {
-        return wallService.getAll();
+    public List<WallResponse> getAll() {
+        return wallService.getAll().stream()
+                .map(wallMapper::toResponse)
+                .toList();
     }
 
     @GetMapping("/{id}")
-    public Wall getById(@PathVariable Integer id) {
-        try {
-            return wallService.getById(id);
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
-        }
+    public WallResponse getById(@PathVariable Integer id) {
+        return wallMapper.toResponse(wallService.getById(id));
+    }
+
+    @GetMapping("/{wallId}/routes")
+    public List<RouteResponse> getRoutes(@PathVariable Integer wallId) {
+        return wallService.getRoutes(wallId).stream()
+                .map(routeMapper::toResponse)
+                .toList();
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public WallResponse create(@Valid @RequestBody CreateWallRequest request) {
+        return wallMapper.toResponse(wallService.create(request));
     }
 }

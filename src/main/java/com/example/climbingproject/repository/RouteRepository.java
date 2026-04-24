@@ -72,4 +72,66 @@ public class RouteRepository {
                 """;
         return jdbcTemplate.query(sql, ROUTE_ROW_MAPPER, id).stream().findFirst();
     }
+
+    public List<Route> findByWallId(Integer wallId) {
+        String sql = """
+                SELECT id,
+                       wall_id,
+                       name,
+                       grade,
+                       length,
+                       style,
+                       bolts,
+                       rope_lengths,
+                       created_at,
+                       first_ascendant,
+                       description
+                FROM routes
+                WHERE wall_id = ?
+                ORDER BY id
+                """;
+        return jdbcTemplate.query(sql, ROUTE_ROW_MAPPER, wallId);
+    }
+
+    public Route create(Route route) {
+        String sql = """
+                INSERT INTO routes (
+                    wall_id,
+                    name,
+                    grade,
+                    length,
+                    style,
+                    bolts,
+                    rope_lengths,
+                    first_ascendant,
+                    description
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id,
+                          wall_id,
+                          name,
+                          grade,
+                          length,
+                          style,
+                          bolts,
+                          rope_lengths,
+                          created_at,
+                          first_ascendant,
+                          description
+                """;
+
+        return jdbcTemplate.queryForObject(
+                sql,
+                ROUTE_ROW_MAPPER,
+                route.getWallId(),
+                route.getName(),
+                route.getGrade(),
+                route.getLength(),
+                route.getStyle(),
+                route.getBolts(),
+                route.getRopeLengths(),
+                route.getFirstAscendant(),
+                route.getDescription()
+        );
+    }
 }

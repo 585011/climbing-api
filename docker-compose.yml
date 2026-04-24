@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: climbing-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
