@@ -17,7 +17,7 @@ class WallRepository(
 
         Wall(
             id = rs.getInt("id"),
-            areaId = rs.getObject("area_id", Int::class.java),
+            areaId = rs.getInt("area_id"),
             name = rs.getString("name"),
             description = rs.getString("description"),
             latitude = rs.getObject("latitude", BigDecimal::class.java),
