@@ -1,10 +1,10 @@
-package com.example.climbingproject.service;
+package com.example.climbingapi.service;
 
-import com.example.climbingproject.dto.CreateWallRequest;
-import com.example.climbingproject.exception.NotFoundException;
-import com.example.climbingproject.model.Wall;
-import com.example.climbingproject.model.Route;
-import com.example.climbingproject.repository.WallRepository;
+import com.example.climbingapi.dto.CreateWallRequest;
+import com.example.climbingapi.exception.NotFoundException;
+import com.example.climbingapi.model.Wall;
+import com.example.climbingapi.model.Route;
+import com.example.climbingapi.repository.WallRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

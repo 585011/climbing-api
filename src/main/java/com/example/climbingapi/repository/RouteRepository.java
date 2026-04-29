@@ -1,6 +1,6 @@
-package com.example.climbingproject.repository;
+package com.example.climbingapi.repository;
 
-import com.example.climbingproject.model.Route;
+import com.example.climbingapi.model.Route;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;

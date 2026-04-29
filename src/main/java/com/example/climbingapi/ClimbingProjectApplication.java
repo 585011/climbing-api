@@ -1,4 +1,4 @@
-package com.example.climbingproject;
+package com.example.climbingapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

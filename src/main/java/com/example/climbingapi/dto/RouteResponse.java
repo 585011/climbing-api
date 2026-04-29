@@ -1,6 +1,6 @@
-package com.example.climbingproject.dto;
+package com.example.climbingapi.dto;
 
-import com.example.climbingproject.model.Route;
+import com.example.climbingapi.model.Route;
 
 import java.time.OffsetDateTime;
 

@@ -1,11 +1,11 @@
-package com.example.climbingproject.controller;
+package com.example.climbingapi.controller;
 
-import com.example.climbingproject.dto.CreateWallRequest;
-import com.example.climbingproject.dto.RouteResponse;
-import com.example.climbingproject.dto.WallResponse;
-import com.example.climbingproject.mapper.RouteMapper;
-import com.example.climbingproject.mapper.WallMapper;
-import com.example.climbingproject.service.WallService;
+import com.example.climbingapi.dto.CreateWallRequest;
+import com.example.climbingapi.dto.RouteResponse;
+import com.example.climbingapi.dto.WallResponse;
+import com.example.climbingapi.mapper.RouteMapper;
+import com.example.climbingapi.mapper.WallMapper;
+import com.example.climbingapi.service.WallService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;

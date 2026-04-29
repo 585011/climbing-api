@@ -1,6 +1,8 @@
 .git
 .gradle
 .idea
+.codex
+docs/
 build
 out
 *.iml

@@ -1,4 +1,4 @@
-package com.example.climbingproject;
+package com.example.climbingapi;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

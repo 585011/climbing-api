@@ -1,4 +1,4 @@
-package com.example.climbingproject.dto;
+package com.example.climbingapi.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

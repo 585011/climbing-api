@@ -1,7 +1,7 @@
-package com.example.climbingproject.mapper;
+package com.example.climbingapi.mapper;
 
-import com.example.climbingproject.dto.RouteResponse;
-import com.example.climbingproject.model.Route;
+import com.example.climbingapi.dto.RouteResponse;
+import com.example.climbingapi.model.Route;
 import org.springframework.stereotype.Component;
 
 @Component

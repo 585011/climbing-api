@@ -1,6 +1,6 @@
-package com.example.climbingproject.dto;
+package com.example.climbingapi.dto;
 
-import com.example.climbingproject.model.Wall;
+import com.example.climbingapi.model.Wall;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

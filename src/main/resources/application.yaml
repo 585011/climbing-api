@@ -1,11 +1,11 @@
 spring:
   application:
-    name: climbing-project
+    name: climbing-api
 
   datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
-    username: ${SPRING_USERNAME}
-    password: ${SPRING_PASSWORD}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   flyway:

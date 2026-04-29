@@ -1,9 +1,9 @@
-package com.example.climbingproject.controller;
+package com.example.climbingapi.controller;
 
-import com.example.climbingproject.dto.CreateRouteRequest;
-import com.example.climbingproject.dto.RouteResponse;
-import com.example.climbingproject.mapper.RouteMapper;
-import com.example.climbingproject.service.RouteService;
+import com.example.climbingapi.dto.CreateRouteRequest;
+import com.example.climbingapi.dto.RouteResponse;
+import com.example.climbingapi.mapper.RouteMapper;
+import com.example.climbingapi.service.RouteService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;

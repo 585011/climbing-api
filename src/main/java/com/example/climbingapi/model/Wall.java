@@ -1,4 +1,4 @@
-package com.example.climbingproject.model;
+package com.example.climbingapi.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,13 +10,14 @@ import java.time.OffsetDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ClimbingArea {
+public class Wall {
 
     private Integer id;
+    private Integer areaId;
     private String name;
     private String description;
     private BigDecimal latitude;
     private BigDecimal longitude;
-    private String region;
+    private String approachInfo;
     private OffsetDateTime createdAt;
 }

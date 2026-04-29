@@ -1,4 +1,4 @@
-package com.example.climbingproject.model;
+package com.example.climbingapi.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

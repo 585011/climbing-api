@@ -1,4 +1,4 @@
-package com.example.climbingproject.exception;
+package com.example.climbingapi.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;

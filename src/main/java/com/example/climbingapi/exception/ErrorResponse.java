@@ -1,4 +1,4 @@
-package com.example.climbingproject.exception;
+package com.example.climbingapi.exception;
 
 import java.time.OffsetDateTime;
 
