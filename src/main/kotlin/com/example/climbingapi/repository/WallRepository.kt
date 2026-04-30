@@ -60,6 +60,10 @@ class WallRepository(
         return jdbcTemplate.query(sql, wallRowMapper, id).firstOrNull()
     }
 
+    fun deleteById(id: Int): Boolean {
+        return jdbcTemplate.update("DELETE FROM walls WHERE id = ?", id) == 1
+    }
+
     fun create(wall: Wall): Wall {
         val sql = """
             INSERT INTO walls (

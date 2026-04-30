@@ -27,6 +27,10 @@ class WallService(
         return routeService.getByWallId(wallId)
     }
 
+    fun delete(id: Int) {
+        if (!wallRepository.deleteById(id)) throw NotFoundException("Wall not found: $id")
+    }
+
     fun create(request: CreateWallRequest): Wall {
         val wall = Wall(
             id = null,

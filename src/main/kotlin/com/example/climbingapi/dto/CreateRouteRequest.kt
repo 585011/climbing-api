@@ -9,10 +9,8 @@ data class CreateRouteRequest(
     @field:Min(value = 1, message = "wallId must be at least 1.")
     val wallId: Int?,
 
-    @field:NotBlank(message = "name is required.")
     val name: String?,
 
-    @field:NotBlank(message = "grade is required.")
     val grade: String?,
 
     @field:Min(value = 1, message = "length must be at least 1.")

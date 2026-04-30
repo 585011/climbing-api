@@ -1,6 +1,7 @@
 package com.example.climbingapi.exception
 
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -28,6 +29,11 @@ class GlobalExceptionHandler {
     fun handleBadRequest(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         val message = extractBadRequestMessage(exception)
         return buildResponse(HttpStatus.BAD_REQUEST, message, request)
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleConflict(exception: DataIntegrityViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        return buildResponse(HttpStatus.CONFLICT, "Cannot delete: resource is referenced by other data.", request)
     }
 
     @ExceptionHandler(Exception::class)
