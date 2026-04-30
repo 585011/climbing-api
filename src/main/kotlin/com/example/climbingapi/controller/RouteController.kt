@@ -12,13 +12,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Routes", description = "Manage climbing routes")
 @RestController
@@ -49,5 +50,15 @@ class RouteController(
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: CreateRouteRequest): RouteResponse {
         return routeMapper.toResponse(routeService.create(request))
+    }
+
+    @Operation(summary = "Delete a route")
+    @ApiResponse(responseCode = "204", description = "Route deleted")
+    @ApiResponse(responseCode = "404", description = "Route not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable id: Int) {
+        routeService.delete(id)
     }
 }

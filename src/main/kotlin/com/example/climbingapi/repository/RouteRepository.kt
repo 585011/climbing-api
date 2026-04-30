@@ -86,6 +86,10 @@ class RouteRepository(
         return jdbcTemplate.query(sql, routeRowMapper, wallId)
     }
 
+    fun deleteById(id: Int): Boolean {
+        return jdbcTemplate.update("DELETE FROM routes WHERE id = ?", id) == 1
+    }
+
     fun create(route: Route): Route {
         val sql = """
             INSERT INTO routes (

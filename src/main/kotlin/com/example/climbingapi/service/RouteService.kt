@@ -26,6 +26,10 @@ class RouteService(
         return routeRepository.findByWallId(wallId)
     }
 
+    fun delete(id: Int) {
+        if (!routeRepository.deleteById(id)) throw NotFoundException("Route not found: $id")
+    }
+
     fun create(request: CreateRouteRequest): Route {
         wallRepository.getById(request.wallId!!)
             ?: throw NotFoundException("Wall not found: ${request.wallId}")
