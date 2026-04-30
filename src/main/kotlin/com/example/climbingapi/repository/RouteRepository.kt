@@ -16,13 +16,13 @@ class RouteRepository(
 
         Route(
             id = rs.getInt("id"),
-            wallId = rs.getInt("wall_id"),
+            wallId = rs.getObject("wall_id", Int::class.java),
             name = rs.getString("name"),
             grade = rs.getString("grade"),
-            length = rs.getInt("length"),
+            length = rs.getObject("length", Int::class.java),
             style = rs.getString("style"),
-            bolts = rs.getInt("bolts"),
-            ropeLengths = rs.getInt("rope_lengths"),
+            bolts = rs.getObject("bolts", Int::class.java),
+            ropeLengths = rs.getObject("rope_lengths", Int::class.java),
             firstAscendant = rs.getString("first_ascendant"),
             description = rs.getString("description"),
             createdAt = createdTime
@@ -88,6 +88,47 @@ class RouteRepository(
 
     fun deleteById(id: Int): Boolean {
         return jdbcTemplate.update("DELETE FROM routes WHERE id = ?", id) == 1
+    }
+
+    fun update(id: Int, route: Route): Route? {
+        val sql = """
+            UPDATE routes
+            SET wall_id = ?,
+                name = ?,
+                grade = ?,
+                length = ?,
+                style = ?,
+                bolts = ?,
+                rope_lengths = ?,
+                first_ascendant = ?,
+                description = ?
+            WHERE id = ?
+            RETURNING id,
+                      wall_id,
+                      name,
+                      grade,
+                      length,
+                      style,
+                      bolts,
+                      rope_lengths,
+                      created_at,
+                      first_ascendant,
+                      description
+        """.trimIndent()
+        return jdbcTemplate.query(
+            sql,
+            routeRowMapper,
+            route.wallId,
+            route.name,
+            route.grade,
+            route.length,
+            route.style,
+            route.bolts,
+            route.ropeLengths,
+            route.firstAscendant,
+            route.description,
+            id
+        ).firstOrNull()
     }
 
     fun create(route: Route): Route {

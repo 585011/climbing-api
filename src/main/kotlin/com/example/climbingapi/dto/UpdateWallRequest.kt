@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import java.math.BigDecimal
 
-data class CreateWallRequest(
+data class UpdateWallRequest(
     @field:NotNull(message = "areaId is required.")
     @field:Min(value = 1, message = "areaId must be at least 1.")
     val areaId: Int?,

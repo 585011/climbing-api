@@ -64,6 +64,38 @@ class WallRepository(
         return jdbcTemplate.update("DELETE FROM walls WHERE id = ?", id) == 1
     }
 
+    fun update(id: Int, wall: Wall): Wall? {
+        val sql = """
+            UPDATE walls
+            SET area_id = ?,
+                name = ?,
+                description = ?,
+                latitude = ?,
+                longitude = ?,
+                approach_info = ?
+            WHERE id = ?
+            RETURNING id,
+                      area_id,
+                      name,
+                      description,
+                      latitude,
+                      longitude,
+                      approach_info,
+                      created_at
+        """.trimIndent()
+        return jdbcTemplate.query(
+            sql,
+            wallRowMapper,
+            wall.areaId,
+            wall.name,
+            wall.description,
+            wall.latitude,
+            wall.longitude,
+            wall.approachInfo,
+            id
+        ).firstOrNull()
+    }
+
     fun create(wall: Wall): Wall {
         val sql = """
             INSERT INTO walls (

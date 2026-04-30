@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateRouteRequest
+import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.repository.RouteRepository
@@ -28,6 +29,24 @@ class RouteService(
 
     fun delete(id: Int) {
         if (!routeRepository.deleteById(id)) throw NotFoundException("Route not found: $id")
+    }
+
+    fun update(id: Int, request: UpdateRouteRequest): Route {
+        wallRepository.getById(request.wallId!!)
+            ?: throw NotFoundException("Wall not found: ${request.wallId}")
+        return routeRepository.update(id, Route(
+            id = null,
+            wallId = request.wallId,
+            name = request.name?.trim(),
+            grade = request.grade?.trim(),
+            length = request.length,
+            style = request.style,
+            bolts = request.bolts,
+            ropeLengths = request.ropeLengths,
+            firstAscendant = request.firstAscendant,
+            description = request.description,
+            createdAt = null
+        )) ?: throw NotFoundException("Route not found: $id")
     }
 
     fun create(request: CreateRouteRequest): Route {

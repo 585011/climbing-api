@@ -2,6 +2,7 @@ package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateRouteRequest
 import com.example.climbingapi.dto.RouteResponse
+import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.ErrorResponse
 import com.example.climbingapi.mapper.RouteMapper
 import com.example.climbingapi.service.RouteService
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -41,6 +43,16 @@ class RouteController(
     @GetMapping("/{id}")
     fun getById(@PathVariable id: Int): RouteResponse {
         return routeMapper.toResponse(routeService.getById(id))
+    }
+
+    @Operation(summary = "Update a route")
+    @ApiResponse(responseCode = "404", description = "Route not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "400", description = "Validation error",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateRouteRequest): RouteResponse {
+        return routeMapper.toResponse(routeService.update(id, request))
     }
 
     @Operation(summary = "Create a route")
