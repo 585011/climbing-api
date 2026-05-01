@@ -2,6 +2,7 @@ package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateWallRequest
 import com.example.climbingapi.dto.RouteResponse
+import com.example.climbingapi.dto.UpdateWallRequest
 import com.example.climbingapi.dto.WallResponse
 import com.example.climbingapi.exception.ErrorResponse
 import com.example.climbingapi.mapper.RouteMapper
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -52,6 +54,16 @@ class WallController(
     @GetMapping("/{wallId}/routes")
     fun getRoutes(@PathVariable wallId: Int): List<RouteResponse> {
         return wallService.getRoutes(wallId).map { routeMapper.toResponse(it) }
+    }
+
+    @Operation(summary = "Update a wall")
+    @ApiResponse(responseCode = "404", description = "Wall not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "400", description = "Validation error",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateWallRequest): WallResponse {
+        return wallMapper.toResponse(wallService.update(id, request))
     }
 
     @Operation(summary = "Create a wall")
