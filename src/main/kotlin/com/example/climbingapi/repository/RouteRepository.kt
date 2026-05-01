@@ -16,13 +16,13 @@ class RouteRepository(
 
         Route(
             id = rs.getInt("id"),
-            wallId = rs.getObject("wall_id", Int::class.java),
+            wallId = rs.getInt("wall_id"),
             name = rs.getString("name"),
             grade = rs.getString("grade"),
-            length = rs.getObject("length", Int::class.java),
+            length = rs.getInt("length"),
             style = rs.getString("style"),
-            bolts = rs.getObject("bolts", Int::class.java),
-            ropeLengths = rs.getObject("rope_lengths", Int::class.java),
+            bolts = rs.getInt("bolts"),
+            ropeLengths = rs.getInt("rope_lengths"),
             firstAscendant = rs.getString("first_ascendant"),
             description = rs.getString("description"),
             createdAt = createdTime

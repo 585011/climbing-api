@@ -6,7 +6,10 @@ build/
 !**/src/test/**/build/
 .codex
 docs/
+application-local.yaml
 .env
+.env.*
+.env.example
 CLAUDE.md
 
 ### STS ###
