@@ -20,8 +20,8 @@ class WallRepository(
             areaId = rs.getInt("area_id"),
             name = rs.getString("name"),
             description = rs.getString("description"),
-            latitude = rs.getObject("latitude", BigDecimal::class.java),
-            longitude = rs.getObject("longitude", BigDecimal::class.java),
+            latitude = rs.getBigDecimal("latitude"),
+            longitude = rs.getBigDecimal("longitude"),
             approachInfo = rs.getString("approach_info"),
             createdAt = createdTime
         )

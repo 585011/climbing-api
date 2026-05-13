@@ -33,12 +33,20 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleConflict(exception: DataIntegrityViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
-        return buildResponse(HttpStatus.CONFLICT, "Cannot delete: resource is referenced by other data.", request)
+        return buildResponse(
+            HttpStatus.CONFLICT,
+            "Database constraint violation.",
+            request
+        )
     }
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", request)
+        return buildResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "An unexpected error occurred.",
+            request
+        )
     }
 
     private fun buildResponse(

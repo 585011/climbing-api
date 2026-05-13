@@ -18,36 +18,41 @@ REST API for managing climbing walls and routes.
 
 - JDK 21
 - Docker and Docker Compose
+- IntelliJ IDEA
 
 ## Quick start
 
-```bash
-# 1. Create a .env file with the required variables (see below)
-
-# 2. Start the database
-docker-compose up -d
-
-# 3. Load environment variables into your shell
-export $(grep -v '^#' .env | xargs)
-
-# 4. Run the application
-./gradlew bootRun
-```
+1. Copy `.env.example` to `.env` and fill in your local values
+2. Start the database: `docker-compose up -d`
+3. Configure datasource env vars in your IntelliJ Run Configuration (see [Environment variables](#environment-variables) below)
+4. Run `ClimbingProjectApplication` from IntelliJ
 
 The app runs at `http://localhost:8080`.  
 Swagger UI is available at `http://localhost:8080/swagger-ui.html`.
 
 ## Environment variables
 
-Create a `.env` file in the project root with these values:
+### Spring Boot
 
-```
-POSTGRES_DB=climb_app
-SPRING_DATASOURCE_USERNAME=climb_user
-SPRING_DATASOURCE_PASSWORD=climb_password
-```
+The app reads its datasource configuration from environment variables. Set these in your IntelliJ **Run → Edit Configurations… → Environment variables**:
 
-These are read by both `docker-compose.yml` (to configure the PostgreSQL container) and `application.yaml` (to configure the datasource).
+| Variable | Example value |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/app` |
+| `SPRING_DATASOURCE_USERNAME` | `user` |
+| `SPRING_DATASOURCE_PASSWORD` | `password` |
+
+Spring Boot does **not** load `.env` automatically — the variables must be present in the process environment (i.e. set in the Run Configuration when running from IntelliJ).
+
+### Docker Compose
+
+`docker-compose.yml` reads a `.env` file from the project root to initialise the Postgres container. Copy `.env.example` to `.env` and set:
+
+| Variable | Description |
+|---|---|
+| `POSTGRES_DB` | Database name |
+| `POSTGRES_USER` | Postgres username |
+| `POSTGRES_PASSWORD` | Postgres password |
 
 ## Architecture
 
@@ -99,8 +104,6 @@ users
 | DELETE | `/api/routes/{id}` | Delete route | 204 / 404 |
 
 All error responses share the shape: `{ timestamp, status, error, message, path }`.
-
-See [`docs/curl-examples.md`](docs/curl-examples.md) for example requests.
 
 ## Database migrations
 
