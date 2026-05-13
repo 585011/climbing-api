@@ -23,6 +23,10 @@ class WallService(
             ?: throw NotFoundException("Wall not found: $id")
     }
 
+    fun getByAreaId(areaId: Int): List<Wall> {
+        return wallRepository.findByAreaId(areaId)
+    }
+
     fun getRoutes(wallId: Int): List<Route> {
         getById(wallId)
         return routeService.getByWallId(wallId)

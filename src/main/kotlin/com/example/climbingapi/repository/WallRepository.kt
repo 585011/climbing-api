@@ -96,6 +96,24 @@ class WallRepository(
         ).firstOrNull()
     }
 
+    fun findByAreaId(areaId: Int): List<Wall> {
+        val sql = """
+            SELECT
+                id,
+                area_id,
+                name,
+                description,
+                latitude,
+                longitude,
+                approach_info,
+                created_at
+            FROM walls
+            WHERE area_id = ?
+            ORDER BY id
+        """.trimIndent()
+        return jdbcTemplate.query(sql, wallRowMapper, areaId)
+    }
+
     fun create(wall: Wall): Wall {
         val sql = """
             INSERT INTO walls (
