@@ -10,7 +10,6 @@ application-local.yaml
 .env
 .env.*
 .env.example
-CLAUDE.md
 
 ### STS ###
 .apt_generated
