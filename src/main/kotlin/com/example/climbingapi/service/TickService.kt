@@ -8,6 +8,7 @@ import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.TickRepository
 import com.example.climbingapi.repository.UserRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class TickService(
@@ -28,9 +29,10 @@ class TickService(
         return tick
     }
 
+    @Transactional
     fun create(userId: Int, request: CreateTickRequest): UserRoute {
         userRepository.getById(userId) ?: throw NotFoundException("User not found: $userId")
-        routeRepository.getById(request.routeId!!) ?: throw NotFoundException("Route not found: ${request.routeId}")
+        routeRepository.getById(request.routeId) ?: throw NotFoundException("Route not found: ${request.routeId}")
         return tickRepository.create(UserRoute(
             id = null,
             userId = userId,

@@ -5,10 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Start the PostgreSQL database (required before running the app)
+# Full-stack (Dockerized) — builds and runs both postgres and the API
 docker-compose up -d
 
-# Run the application
+# Hybrid (local dev) — starts only the database; run the API separately
+docker-compose up -d postgres
 ./gradlew bootRun
 
 # Build
@@ -31,9 +32,11 @@ Copy `.env` values as environment variables before running. The app reads `POSTG
 export $(grep -v '^#' .env | xargs)
 ```
 
+Requires **Java 21** (the Gradle toolchain will download it automatically if not present).
+
 ## Architecture
 
-Kotlin + Spring Boot 3.5 REST API backed by PostgreSQL. Uses **Spring Data JDBC** (`JdbcTemplate`) with hand-written SQL — there is no JPA/ORM.
+Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Data JDBC** (`JdbcTemplate`) with hand-written SQL — there is no JPA/ORM.
 
 **Layer flow:** `Controller → Service → Repository`
 
@@ -41,7 +44,7 @@ Kotlin + Spring Boot 3.5 REST API backed by PostgreSQL. Uses **Spring Data JDBC*
 - `service/` — Business logic. Throws `NotFoundException` when entities are missing.
 - `repository/` — Raw SQL via `JdbcTemplate` with inline `RowMapper` lambdas. Uses `RETURNING` clauses on inserts to avoid a second query.
 - `model/` — Plain Kotlin data classes (no annotations). `id` and `createdAt` are nullable since they are DB-assigned.
-- `dto/` — Request/response classes. Requests use Bean Validation annotations (`@NotBlank`, `@Min`, etc.).
+- `dto/` — Request/response classes. Requests use Bean Validation annotations (`@NotBlank`, `@Min`, `@Email`, etc.). Required fields are non-nullable; optional fields are `String?`/`Int?`. Response DTOs use non-nullable types for fields guaranteed by the DB schema.
 - `mapper/` — Spring `@Component` classes that convert between `model` and `dto` types.
 - `exception/` — `GlobalExceptionHandler` (`@RestControllerAdvice`) centralises error responses. All 404s come from `NotFoundException`.
 
@@ -69,27 +72,42 @@ Kotlin + Spring Boot 3.5 REST API backed by PostgreSQL. Uses **Spring Data JDBC*
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote |
 | DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 404 if not found |
 
-All error responses share the shape: `{ timestamp, status, error, message, path }`.
+All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
 ## Domain model
 
 ```
 climbing_areas
-    └── walls (FK: area_id)
-            └── routes (FK: wall_id)
+    └── walls (FK: area_id, ON DELETE CASCADE)
+            └── routes (FK: wall_id, ON DELETE CASCADE)
 
 users
-    └── user_route_ticks (FK: user_id, route_id)
+    └── user_route_ticks (FK: user_id + route_id, ON DELETE CASCADE, UNIQUE per pair)
 ```
 
-`ClimbingArea` has a controller/service/repository. `User` and `UserRoute` (ticks) are fully wired up. All five domain types now have a complete stack.
+All five domain types have a complete Controller/Service/Repository stack.
 
 ## Conventions
 
 - Services trim `name` (and `grade` for routes) before persisting.
 - Mappers only implement `toResponse()` — there is no `toModel()` direction.
-- Unit tests for `UserService` and `TickService` use Mockito (`@ExtendWith(MockitoExtension::class)`) — no Spring context needed.
+- Unit tests for `UserService` and `TickService` use Mockito (`@ExtendWith(MockitoExtension::class)`) with JUnit 5 — no Spring context needed.
+- All REST endpoints are prefixed with `/api`.
+- No authentication or authorisation is implemented yet.
+- Multi-step service methods (e.g. validate → insert) are annotated `@Transactional`.
 
 ## Database migrations
 
 Flyway migrations live in `src/main/resources/db/migration/`. New migrations must follow the `V{n}__{description}.sql` naming convention and are applied automatically on startup.
+
+| File | Purpose |
+|------|---------|
+| `V1__create_tables.sql` | Full schema (all 5 tables) |
+| `V2__seed_test_data.sql` | Sample wall + routes in Bergen |
+| `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
+| `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
+
+## Related projects
+
+- **climbing-web** — companion frontend at https://github.com/585011/climbing-web.
+  `CorsConfig.kt` is wired for this frontend. API changes that affect the contract should be coordinated with that repo.

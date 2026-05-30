@@ -158,7 +158,7 @@ class RouteRepository(
                       description
         """.trimIndent()
 
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
             sql,
             routeRowMapper,
             route.wallId,
@@ -170,6 +170,6 @@ class RouteRepository(
             route.ropeLengths,
             route.firstAscendant,
             route.description
-        )!!
+        ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

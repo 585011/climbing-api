@@ -1,6 +1,6 @@
 # Climbing API
 
-REST API for managing climbing walls and routes.
+REST API for managing climbing walls, routes, and user ticks.
 
 ## Tech stack
 
@@ -18,41 +18,37 @@ REST API for managing climbing walls and routes.
 
 - JDK 21
 - Docker and Docker Compose
-- IntelliJ IDEA
 
 ## Quick start
 
-1. Copy `.env.example` to `.env` and fill in your local values
-2. Start the database: `docker-compose up -d`
-3. Configure datasource env vars in your IntelliJ Run Configuration (see [Environment variables](#environment-variables) below)
-4. Run `ClimbingProjectApplication` from IntelliJ
+```bash
+# Copy and fill in your local values
+cp .env.example .env
+
+# Full-stack: start postgres + build + run API
+docker-compose up -d
+
+# Or hybrid: start only the DB, run the API locally
+docker-compose up -d postgres
+export $(grep -v '^#' .env | xargs)
+./gradlew bootRun
+```
 
 The app runs at `http://localhost:8080`.  
 Swagger UI is available at `http://localhost:8080/swagger-ui.html`.
 
 ## Environment variables
 
-### Spring Boot
-
-The app reads its datasource configuration from environment variables. Set these in your IntelliJ **Run → Edit Configurations… → Environment variables**:
-
-| Variable | Example value |
-|---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/app` |
-| `SPRING_DATASOURCE_USERNAME` | `user` |
-| `SPRING_DATASOURCE_PASSWORD` | `password` |
-
-Spring Boot does **not** load `.env` automatically — the variables must be present in the process environment (i.e. set in the Run Configuration when running from IntelliJ).
-
-### Docker Compose
-
-`docker-compose.yml` reads a `.env` file from the project root to initialise the Postgres container. Copy `.env.example` to `.env` and set:
+`docker-compose.yml` reads `.env` from the project root automatically. For local `./gradlew bootRun`, export the variables into your shell first.
 
 | Variable | Description |
 |---|---|
 | `POSTGRES_DB` | Database name |
-| `POSTGRES_USER` | Postgres username |
-| `POSTGRES_PASSWORD` | Postgres password |
+| `POSTGRES_USER` | Postgres superuser (used by the postgres container init) |
+| `POSTGRES_PASSWORD` | Postgres superuser password |
+| `SPRING_DATASOURCE_USERNAME` | Username Spring Boot uses to connect |
+| `SPRING_DATASOURCE_PASSWORD` | Password Spring Boot uses to connect |
+| `SPRING_DATASOURCE_URL` | JDBC URL (only needed for local `bootRun`; compose overrides it) |
 
 ## Architecture
 
@@ -70,40 +66,53 @@ PostgreSQL
 
 **Key design decisions:**
 - No ORM — raw SQL with `RETURNING` clauses on INSERT/UPDATE to avoid a second query
-- All 404s are raised as `NotFoundException` and caught by `GlobalExceptionHandler` (`@RestControllerAdvice`)
+- All 404s raised as `NotFoundException`, caught by `GlobalExceptionHandler` (`@RestControllerAdvice`)
 - Mappers convert model → response DTO only (no reverse direction)
 - Services trim `name` (and `grade` for routes) before persisting
+- Multi-step service methods (validate → insert) are wrapped in `@Transactional`
 
 ## Domain model
 
 ```
 climbing_areas
-    └── walls          (FK: area_id → climbing_areas.id)
-            └── routes (FK: wall_id → walls.id)
+    └── walls          (FK: area_id → climbing_areas.id, CASCADE)
+            └── routes (FK: wall_id → walls.id, CASCADE)
 
 users
-    └── user_route_ticks (FK: user_id → users.id, route_id → routes.id)
+    └── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
 ```
 
-`Wall` and `Route` are fully implemented. `ClimbingArea`, `User`, and `UserRoute` have models and DB tables but no controllers or services yet.
+Deleting a parent cascades to all children (area → walls → routes → ticks; user → ticks).
 
 ## API endpoints
 
 | Method | Path | Description | Success |
 |---|---|---|---|
+| GET | `/api/climbing-areas` | List all areas | 200 |
+| GET | `/api/climbing-areas/{id}` | Get area by ID | 200 / 404 |
+| POST | `/api/climbing-areas` | Create area | 201 |
+| PUT | `/api/climbing-areas/{id}` | Full replace | 200 / 404 |
 | GET | `/api/walls` | List all walls | 200 |
 | GET | `/api/walls/{id}` | Get wall by ID | 200 / 404 |
 | POST | `/api/walls` | Create wall | 201 |
 | PUT | `/api/walls/{id}` | Full replace | 200 / 404 |
-| DELETE | `/api/walls/{id}` | Delete wall | 204 / 404 |
 | GET | `/api/walls/{wallId}/routes` | List routes for a wall | 200 / 404 |
 | GET | `/api/routes` | List all routes | 200 |
 | GET | `/api/routes/{id}` | Get route by ID | 200 / 404 |
 | POST | `/api/routes` | Create route | 201 |
 | PUT | `/api/routes/{id}` | Full replace | 200 / 404 |
-| DELETE | `/api/routes/{id}` | Delete route | 204 / 404 |
+| GET | `/api/users` | List all users | 200 |
+| GET | `/api/users/{id}` | Get user by ID | 200 / 404 |
+| POST | `/api/users` | Create user | 201 |
+| PUT | `/api/users/{id}` | Full replace | 200 / 404 |
+| DELETE | `/api/users/{id}` | Delete user | 204 / 404 / 409 |
+| GET | `/api/users/{userId}/ticks` | List user's ticks | 200 / 404 |
+| POST | `/api/users/{userId}/ticks` | Tick a route | 201 / 404 / 409 |
+| GET | `/api/users/{userId}/ticks/{tickId}` | Get tick | 200 / 404 |
+| PUT | `/api/users/{userId}/ticks/{tickId}` | Update tick | 200 / 404 |
+| DELETE | `/api/users/{userId}/ticks/{tickId}` | Delete tick | 204 / 404 |
 
-All error responses share the shape: `{ timestamp, status, error, message, path }`.
+All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
 ## Database migrations
 
@@ -112,7 +121,9 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | File | Purpose |
 |---|---|
 | `V1__create_tables.sql` | Full schema (all 5 tables) |
-| `V2__seed_test_data.sql` | Sample data: 1 wall, 3 routes in Bergen |
+| `V2__seed_test_data.sql` | Sample wall + 3 routes in Bergen |
+| `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
+| `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE constraints, CASCADE deletes, FK indexes, lat/lng precision |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 
@@ -122,7 +133,7 @@ New migrations must follow the `V{n}__{description}.sql` naming convention.
 ./gradlew test
 ```
 
-Currently only a Spring context-load smoke test exists.
+Unit tests for `UserService` and `TickService` use Mockito (no Spring context). The context-load smoke test requires the database to be running.
 
 ## Building
 
@@ -130,4 +141,4 @@ Currently only a Spring context-load smoke test exists.
 ./gradlew build
 ```
 
-A `Dockerfile` is included for building a container image.
+A `Dockerfile` and `docker-compose.yml` are included for containerised builds and local development.

@@ -5,7 +5,7 @@ import java.math.BigDecimal
 
 data class CreateClimbingAreaRequest(
     @field:NotBlank(message = "name is required.")
-    val name: String?,
+    val name: String,
 
     val description: String?,
     val latitude: BigDecimal?,

@@ -105,7 +105,7 @@ class ClimbingAreaRepository (
             created_at
         """.trimIndent()
 
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
             sql,
             climbingAreaMapper,
             climbingArea.name,
@@ -113,6 +113,6 @@ class ClimbingAreaRepository (
             climbingArea.latitude,
             climbingArea.longitude,
             climbingArea.region
-        )!!
+        ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

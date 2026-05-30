@@ -8,6 +8,7 @@ data class ErrorResponse(
     val timestamp: OffsetDateTime,
     val status: Int,
     val error: String,
+    val errorCode: String,
     val message: String,
     val path: String
 )

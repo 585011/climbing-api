@@ -2,16 +2,14 @@ package com.example.climbingapi.dto
 
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.NotNull
 import java.math.BigDecimal
 
 data class CreateWallRequest(
-    @field:NotNull(message = "areaId is required.")
     @field:Min(value = 1, message = "areaId must be at least 1.")
-    val areaId: Int?,
+    val areaId: Int,
 
     @field:NotBlank(message = "name is required.")
-    val name: String?,
+    val name: String,
 
     val description: String?,
     val latitude: BigDecimal?,

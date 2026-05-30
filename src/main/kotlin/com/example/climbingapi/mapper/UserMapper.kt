@@ -9,10 +9,10 @@ class UserMapper {
 
     fun toResponse(user: User): UserResponse {
         return UserResponse(
-            id = user.id,
-            email = user.email,
-            displayName = user.displayName,
-            createdAt = user.createdAt
+            id = user.id!!,
+            email = user.email!!,
+            displayName = user.displayName!!,
+            createdAt = user.createdAt!!
         )
     }
 }
