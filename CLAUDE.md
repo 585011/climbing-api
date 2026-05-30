@@ -52,21 +52,22 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/api/walls` | List all walls |
+| GET | `/api/climbing-areas` | List all areas; supports `?page=0&size=20` (max 100) |
+| GET | `/api/walls` | List all walls; supports `?page=0&size=20` (max 100) |
 | GET | `/api/walls/{id}` | 404 if not found |
 | POST | `/api/walls` | Returns 201; `areaId` required |
 | GET | `/api/walls/{wallId}/routes` | 404 if wall not found |
 | PUT | `/api/walls/{id}` | Full replace; 404 if not found |
-| GET | `/api/routes` | List all routes |
+| GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100) |
 | GET | `/api/routes/{id}` | 404 if not found |
 | POST | `/api/routes` | Returns 201; validates wall exists |
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
-| GET | `/api/users` | List all users |
+| GET | `/api/users` | List all users; supports `?page=0&size=20` (max 100) |
 | GET | `/api/users/{id}` | 404 if not found |
 | POST | `/api/users` | Returns 201 |
 | PUT | `/api/users/{id}` | Full replace; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 409 if user has ticks |
-| GET | `/api/users/{userId}/ticks` | List user's ticked routes; 404 if user not found |
+| GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20`; 404 if user not found |
 | POST | `/api/users/{userId}/ticks` | Returns 201; validates user + route exist |
 | GET | `/api/users/{userId}/ticks/{tickId}` | 404 if user or tick not found |
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote |
@@ -91,10 +92,11 @@ All five domain types have a complete Controller/Service/Repository stack.
 
 - Services trim `name` (and `grade` for routes) before persisting.
 - Mappers only implement `toResponse()` — there is no `toModel()` direction.
-- Unit tests for `UserService` and `TickService` use Mockito (`@ExtendWith(MockitoExtension::class)`) with JUnit 5 — no Spring context needed.
+- Unit tests for all 5 services use Mockito (`@ExtendWith(MockitoExtension::class)`) — no Spring context needed.
 - All REST endpoints are prefixed with `/api`.
 - No authentication or authorisation is implemented yet.
 - Multi-step service methods (e.g. validate → insert) are annotated `@Transactional`.
+- List endpoints return `PagedResponse<T>` with `data`, `page`, `pageSize`, `total` fields. Size is clamped to max 100 in the service layer.
 
 ## Database migrations
 

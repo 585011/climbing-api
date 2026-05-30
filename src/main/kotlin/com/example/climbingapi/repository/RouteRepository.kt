@@ -29,7 +29,7 @@ class RouteRepository(
         )
     }
 
-    fun getAll(): List<Route> {
+    fun getAll(page: Int, size: Int): List<Route> {
         val sql = """
             SELECT id,
                    wall_id,
@@ -43,8 +43,14 @@ class RouteRepository(
                    first_ascendant,
                    description
             FROM routes
+            ORDER BY id
+            LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, routeRowMapper)
+        return jdbcTemplate.query(sql, routeRowMapper, size, page * size)
+    }
+
+    fun count(): Int {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM routes", Int::class.java) ?: 0
     }
 
     fun getById(id: Int): Route? {

@@ -20,12 +20,18 @@ class UserRepository(
         )
     }
 
-    fun getAll(): List<User> {
+    fun getAll(page: Int, size: Int): List<User> {
         val sql = """
             SELECT id, email, display_name, created_at
             FROM users
+            ORDER BY id
+            LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, userRowMapper)
+        return jdbcTemplate.query(sql, userRowMapper, size, page * size)
+    }
+
+    fun count(): Int {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Int::class.java) ?: 0
     }
 
     fun getById(id: Int): User? {

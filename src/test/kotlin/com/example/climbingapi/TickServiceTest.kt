@@ -37,17 +37,18 @@ class TickServiceTest {
     @Test
     fun `getByUserId returns ticks when user exists`() {
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
-        `when`(tickRepository.findByUserId(1)).thenReturn(listOf(sampleTick))
+        `when`(tickRepository.findByUserId(1, 0, 20)).thenReturn(listOf(sampleTick))
+        `when`(tickRepository.countByUserId(1)).thenReturn(1)
 
-        val result = tickService.getByUserId(1)
+        val result = tickService.getByUserId(1, 0, 20)
 
-        assertEquals(listOf(sampleTick), result)
+        assertEquals(listOf(sampleTick), result.data)
     }
 
     @Test
     fun `getByUserId throws NotFoundException when user missing`() {
         `when`(userRepository.getById(99)).thenReturn(null)
-        assertThrows(NotFoundException::class.java) { tickService.getByUserId(99) }
+        assertThrows(NotFoundException::class.java) { tickService.getByUserId(99, 0, 20) }
     }
 
     @Test

@@ -32,14 +32,22 @@ class TickRepository(
         return jdbcTemplate.query(sql, tickRowMapper, id).firstOrNull()
     }
 
-    fun findByUserId(userId: Int): List<UserRoute> {
+    fun findByUserId(userId: Int, page: Int, size: Int): List<UserRoute> {
         val sql = """
             SELECT id, user_id, route_id, ticked_at, style, rating, personal_note
             FROM user_route_ticks
             WHERE user_id = ?
             ORDER BY ticked_at DESC
+            LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, tickRowMapper, userId)
+        return jdbcTemplate.query(sql, tickRowMapper, userId, size, page * size)
+    }
+
+    fun countByUserId(userId: Int): Int {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM user_route_ticks WHERE user_id = ?",
+            Int::class.java, userId
+        ) ?: 0
     }
 
     fun create(tick: UserRoute): UserRoute {

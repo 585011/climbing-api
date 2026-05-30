@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateUserRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateUserRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.User
@@ -12,7 +13,12 @@ class UserService(
     private val userRepository: UserRepository
 ) {
 
-    fun getAll(): List<User> = userRepository.getAll()
+    fun getAll(page: Int, size: Int): PagedResponse<User> {
+        val effectiveSize = size.coerceIn(1, 100)
+        val data = userRepository.getAll(page, effectiveSize)
+        val total = userRepository.count()
+        return PagedResponse(data, page, effectiveSize, total)
+    }
 
     fun getById(id: Int): User {
         return userRepository.getById(id) ?: throw NotFoundException("User not found: $id")

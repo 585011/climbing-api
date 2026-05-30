@@ -27,7 +27,7 @@ class WallRepository(
         )
     }
 
-    fun getAll(): List<Wall> {
+    fun getAll(page: Int, size: Int): List<Wall> {
         val sql = """
             SELECT
                 id,
@@ -39,8 +39,14 @@ class WallRepository(
                 approach_info,
                 created_at
             FROM walls
+            ORDER BY id
+            LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, wallRowMapper)
+        return jdbcTemplate.query(sql, wallRowMapper, size, page * size)
+    }
+
+    fun count(): Int {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM walls", Int::class.java) ?: 0
     }
 
     fun getById(id: Int): Wall? {

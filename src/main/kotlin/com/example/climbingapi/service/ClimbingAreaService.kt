@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateClimbingAreaRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateClimbingAreaRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.ClimbingArea
@@ -14,8 +15,11 @@ class ClimbingAreaService(
     private val wallService: WallService
 ) {
 
-    fun getAll(): List<ClimbingArea> {
-        return climbingAreaRepository.getAll()
+    fun getAll(page: Int, size: Int): PagedResponse<ClimbingArea> {
+        val effectiveSize = size.coerceIn(1, 100)
+        val data = climbingAreaRepository.getAll(page, effectiveSize)
+        val total = climbingAreaRepository.count()
+        return PagedResponse(data, page, effectiveSize, total)
     }
 
     fun getById(id: Int): ClimbingArea {
