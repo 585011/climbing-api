@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = "Walls", description = "Manage climbing walls")
 @RestController
@@ -36,24 +38,29 @@ class WallController(
 
     @Operation(summary = "List all walls")
     @GetMapping
-    fun getAll(): List<WallResponse> {
-        return wallService.getAll().map { wallMapper.toResponse(it) }
-    }
+    fun getAll(): List<WallResponse> = wallService.getAll().map { wallMapper.toResponse(it) }
 
     @Operation(summary = "Get a wall by ID")
     @ApiResponse(responseCode = "404", description = "Wall not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: Int): WallResponse {
-        return wallMapper.toResponse(wallService.getById(id))
-    }
+    fun getById(@PathVariable id: Int): WallResponse = wallMapper.toResponse(wallService.getById(id))
 
     @Operation(summary = "List routes for a wall")
     @ApiResponse(responseCode = "404", description = "Wall not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{wallId}/routes")
-    fun getRoutes(@PathVariable wallId: Int): List<RouteResponse> {
-        return wallService.getRoutes(wallId).map { routeMapper.toResponse(it) }
+    fun getRoutes(@PathVariable wallId: Int): List<RouteResponse> =
+        wallService.getRoutes(wallId).map { routeMapper.toResponse(it) }
+
+    @Operation(summary = "Create a wall")
+    @ApiResponse(responseCode = "400", description = "Validation error",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PostMapping
+    fun create(@Valid @RequestBody request: CreateWallRequest, ucb: UriComponentsBuilder): ResponseEntity<WallResponse> {
+        val created = wallMapper.toResponse(wallService.create(request))
+        val location = ucb.path("/api/walls/{id}").buildAndExpand(created.id).toUri()
+        return ResponseEntity.created(location).body(created)
     }
 
     @Operation(summary = "Update a wall")
@@ -62,18 +69,8 @@ class WallController(
     @ApiResponse(responseCode = "400", description = "Validation error",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateWallRequest): WallResponse {
-        return wallMapper.toResponse(wallService.update(id, request))
-    }
-
-    @Operation(summary = "Create a wall")
-    @ApiResponse(responseCode = "400", description = "Validation error",
-        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody request: CreateWallRequest): WallResponse {
-        return wallMapper.toResponse(wallService.create(request))
-    }
+    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateWallRequest): WallResponse =
+        wallMapper.toResponse(wallService.update(id, request))
 
     @Operation(summary = "Delete a wall")
     @ApiResponse(responseCode = "204", description = "Wall deleted")
@@ -81,7 +78,5 @@ class WallController(
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Int) {
-        wallService.delete(id)
-    }
+    fun delete(@PathVariable id: Int) = wallService.delete(id)
 }

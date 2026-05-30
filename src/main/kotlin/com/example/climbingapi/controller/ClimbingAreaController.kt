@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = "Climbing Areas", description = "Manage climbing areas")
 @RestController
@@ -36,33 +38,34 @@ class ClimbingAreaController(
 
     @Operation(summary = "List all climbing areas")
     @GetMapping
-    fun getAll(): List<ClimbingAreaResponse> {
-        return climbingAreaService.getAll().map { climbingAreaMapper.toResponse(it) }
-    }
+    fun getAll(): List<ClimbingAreaResponse> =
+        climbingAreaService.getAll().map { climbingAreaMapper.toResponse(it) }
 
     @Operation(summary = "Get a climbing area by ID")
     @ApiResponse(responseCode = "404", description = "Climbing area not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: Int): ClimbingAreaResponse {
-        return climbingAreaMapper.toResponse(climbingAreaService.getById(id))
-    }
+    fun getById(@PathVariable id: Int): ClimbingAreaResponse =
+        climbingAreaMapper.toResponse(climbingAreaService.getById(id))
 
     @Operation(summary = "List walls for a climbing area")
     @ApiResponse(responseCode = "404", description = "Climbing area not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{areaId}/walls")
-    fun getWalls(@PathVariable areaId: Int): List<WallResponse> {
-        return climbingAreaService.getWalls(areaId).map { wallMapper.toResponse(it) }
-    }
+    fun getWalls(@PathVariable areaId: Int): List<WallResponse> =
+        climbingAreaService.getWalls(areaId).map { wallMapper.toResponse(it) }
 
     @Operation(summary = "Create a climbing area")
     @ApiResponse(responseCode = "400", description = "Validation error",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody request: CreateClimbingAreaRequest): ClimbingAreaResponse {
-        return climbingAreaMapper.toResponse(climbingAreaService.create(request))
+    fun create(
+        @Valid @RequestBody request: CreateClimbingAreaRequest,
+        ucb: UriComponentsBuilder
+    ): ResponseEntity<ClimbingAreaResponse> {
+        val created = climbingAreaMapper.toResponse(climbingAreaService.create(request))
+        val location = ucb.path("/api/climbing-areas/{id}").buildAndExpand(created.id).toUri()
+        return ResponseEntity.created(location).body(created)
     }
 
     @Operation(summary = "Update a climbing area")
@@ -71,9 +74,8 @@ class ClimbingAreaController(
     @ApiResponse(responseCode = "400", description = "Validation error",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateClimbingAreaRequest): ClimbingAreaResponse {
-        return climbingAreaMapper.toResponse(climbingAreaService.update(id, request))
-    }
+    fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateClimbingAreaRequest): ClimbingAreaResponse =
+        climbingAreaMapper.toResponse(climbingAreaService.update(id, request))
 
     @Operation(summary = "Delete a climbing area")
     @ApiResponse(responseCode = "204", description = "Climbing area deleted")
@@ -81,7 +83,5 @@ class ClimbingAreaController(
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Int) {
-        climbingAreaService.delete(id)
-    }
+    fun delete(@PathVariable id: Int) = climbingAreaService.delete(id)
 }
