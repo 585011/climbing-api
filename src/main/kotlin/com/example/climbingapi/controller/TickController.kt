@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = "Ticks", description = "Track ascended routes")
 @RestController
@@ -37,9 +39,15 @@ class TickController(
     @ApiResponse(responseCode = "400", description = "Validation error",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(@PathVariable userId: Int, @Valid @RequestBody request: CreateTickRequest): TickResponse =
-        tickMapper.toResponse(tickService.create(userId, request))
+    fun create(
+        @PathVariable userId: Int,
+        @Valid @RequestBody request: CreateTickRequest,
+        ucb: UriComponentsBuilder
+    ): ResponseEntity<TickResponse> {
+        val created = tickMapper.toResponse(tickService.create(userId, request))
+        val location = ucb.path("/api/users/{userId}/ticks/{tickId}").buildAndExpand(userId, created.id).toUri()
+        return ResponseEntity.created(location).body(created)
+    }
 
     @Operation(summary = "Get a tick by ID")
     @ApiResponse(responseCode = "404", description = "User or tick not found",
