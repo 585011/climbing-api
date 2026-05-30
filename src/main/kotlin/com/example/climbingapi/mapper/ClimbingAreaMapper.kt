@@ -9,13 +9,13 @@ class ClimbingAreaMapper {
 
     fun toResponse(area: ClimbingArea): ClimbingAreaResponse {
         return ClimbingAreaResponse(
-            id = area.id,
-            name = area.name,
+            id = area.id!!,
+            name = area.name!!,
             description = area.description,
             latitude = area.latitude,
             longitude = area.longitude,
             region = area.region,
-            createdAt = area.createdAt
+            createdAt = area.createdAt!!
         )
     }
 }

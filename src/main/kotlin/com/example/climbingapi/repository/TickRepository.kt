@@ -48,10 +48,10 @@ class TickRepository(
             VALUES (?, ?, ?, ?, ?)
             RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note
         """.trimIndent()
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
             sql, tickRowMapper,
             tick.userId, tick.routeId, tick.style, tick.rating, tick.personalNote
-        )!!
+        ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 
     fun update(id: Int, tick: UserRoute): UserRoute? {

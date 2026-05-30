@@ -9,14 +9,14 @@ class WallMapper {
 
     fun toResponse(wall: Wall): WallResponse {
         return WallResponse(
-            id = wall.id,
-            areaId = wall.areaId,
-            name = wall.name,
+            id = wall.id!!,
+            areaId = wall.areaId!!,
+            name = wall.name!!,
             description = wall.description,
             latitude = wall.latitude,
             longitude = wall.longitude,
             approachInfo = wall.approachInfo,
-            createdAt = wall.createdAt
+            createdAt = wall.createdAt!!
         )
     }
 }

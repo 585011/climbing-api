@@ -9,8 +9,8 @@ class RouteMapper {
 
     fun toResponse(route: Route): RouteResponse {
         return RouteResponse(
-            id = route.id,
-            wallId = route.wallId,
+            id = route.id!!,
+            wallId = route.wallId!!,
             name = route.name,
             grade = route.grade,
             length = route.length,
@@ -19,7 +19,7 @@ class RouteMapper {
             ropeLengths = route.ropeLengths,
             firstAscendant = route.firstAscendant,
             description = route.description,
-            createdAt = route.createdAt
+            createdAt = route.createdAt!!
         )
     }
 }

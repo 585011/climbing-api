@@ -1,12 +1,10 @@
 package com.example.climbingapi.dto
 
 import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotNull
 
 data class UpdateRouteRequest(
-    @field:NotNull(message = "wallId is required.")
     @field:Min(value = 1, message = "wallId must be at least 1.")
-    val wallId: Int?,
+    val wallId: Int,
 
     val name: String?,
     val grade: String?,

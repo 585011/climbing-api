@@ -43,7 +43,8 @@ class UserRepository(
             VALUES (?, ?)
             RETURNING id, email, display_name, created_at
         """.trimIndent()
-        return jdbcTemplate.queryForObject(sql, userRowMapper, user.email, user.displayName)!!
+        return jdbcTemplate.query(sql, userRowMapper, user.email, user.displayName).firstOrNull()
+            ?: error("INSERT RETURNING returned no row")
     }
 
     fun update(id: Int, user: User): User? {

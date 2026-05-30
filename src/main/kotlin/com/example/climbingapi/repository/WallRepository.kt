@@ -135,7 +135,7 @@ class WallRepository(
                       created_at
         """.trimIndent()
 
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
             sql,
             wallRowMapper,
             wall.areaId,
@@ -144,6 +144,6 @@ class WallRepository(
             wall.latitude,
             wall.longitude,
             wall.approachInfo
-        )!!
+        ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

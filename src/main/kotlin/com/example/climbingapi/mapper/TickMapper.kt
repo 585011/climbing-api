@@ -9,10 +9,10 @@ class TickMapper {
 
     fun toResponse(tick: UserRoute): TickResponse {
         return TickResponse(
-            id = tick.id,
-            userId = tick.userId,
-            routeId = tick.routeId,
-            tickedAt = tick.tickedAt,
+            id = tick.id!!,
+            userId = tick.userId!!,
+            routeId = tick.routeId!!,
+            tickedAt = tick.tickedAt!!,
             style = tick.style,
             rating = tick.rating,
             personalNote = tick.personalNote

@@ -7,6 +7,7 @@ import com.example.climbingapi.model.Route
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.WallRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class RouteService(
@@ -31,8 +32,9 @@ class RouteService(
         if (!routeRepository.deleteById(id)) throw NotFoundException("Route not found: $id")
     }
 
+    @Transactional
     fun update(id: Int, request: UpdateRouteRequest): Route {
-        wallRepository.getById(request.wallId!!)
+        wallRepository.getById(request.wallId)
             ?: throw NotFoundException("Wall not found: ${request.wallId}")
         return routeRepository.update(id, Route(
             id = null,
@@ -49,8 +51,9 @@ class RouteService(
         )) ?: throw NotFoundException("Route not found: $id")
     }
 
+    @Transactional
     fun create(request: CreateRouteRequest): Route {
-        wallRepository.getById(request.wallId!!)
+        wallRepository.getById(request.wallId)
             ?: throw NotFoundException("Wall not found: ${request.wallId}")
 
         val route = Route(
