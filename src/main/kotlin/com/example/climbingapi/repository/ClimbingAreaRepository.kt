@@ -25,7 +25,7 @@ class ClimbingAreaRepository (
         )
     }
 
-    fun getAll(): List<ClimbingArea> {
+    fun getAll(page: Int, size: Int): List<ClimbingArea> {
         val sql = """
             SELECT id,
                    name,
@@ -35,8 +35,14 @@ class ClimbingAreaRepository (
                    region,
                    created_at
             FROM climbing_areas
+            ORDER BY id
+            LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, climbingAreaMapper)
+        return jdbcTemplate.query(sql, climbingAreaMapper, size, page * size)
+    }
+
+    fun count(): Int {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM climbing_areas", Int::class.java) ?: 0
     }
 
     fun getById(id: Int): ClimbingArea? {

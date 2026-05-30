@@ -1,6 +1,7 @@
 package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateWallRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.RouteResponse
 import com.example.climbingapi.dto.UpdateWallRequest
 import com.example.climbingapi.dto.WallResponse
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.util.UriComponentsBuilder
@@ -38,7 +40,13 @@ class WallController(
 
     @Operation(summary = "List all walls")
     @GetMapping
-    fun getAll(): List<WallResponse> = wallService.getAll().map { wallMapper.toResponse(it) }
+    fun getAll(
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): PagedResponse<WallResponse> {
+        val paged = wallService.getAll(page, size)
+        return PagedResponse(paged.data.map { wallMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
+    }
 
     @Operation(summary = "Get a wall by ID")
     @ApiResponse(responseCode = "404", description = "Wall not found",

@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateRouteRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.Route
@@ -15,8 +16,11 @@ class RouteService(
     private val wallRepository: WallRepository
 ) {
 
-    fun getAll(): List<Route> {
-        return routeRepository.getAll()
+    fun getAll(page: Int, size: Int): PagedResponse<Route> {
+        val effectiveSize = size.coerceIn(1, 100)
+        val data = routeRepository.getAll(page, effectiveSize)
+        val total = routeRepository.count()
+        return PagedResponse(data, page, effectiveSize, total)
     }
 
     fun getById(id: Int): Route {

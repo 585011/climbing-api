@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateTickRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateTickRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.UserRoute
@@ -17,9 +18,12 @@ class TickService(
     private val routeRepository: RouteRepository
 ) {
 
-    fun getByUserId(userId: Int): List<UserRoute> {
+    fun getByUserId(userId: Int, page: Int, size: Int): PagedResponse<UserRoute> {
         userRepository.getById(userId) ?: throw NotFoundException("User not found: $userId")
-        return tickRepository.findByUserId(userId)
+        val effectiveSize = size.coerceIn(1, 100)
+        val data = tickRepository.findByUserId(userId, page, effectiveSize)
+        val total = tickRepository.countByUserId(userId)
+        return PagedResponse(data, page, effectiveSize, total)
     }
 
     fun getById(userId: Int, tickId: Int): UserRoute {

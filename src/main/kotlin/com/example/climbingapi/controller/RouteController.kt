@@ -1,6 +1,7 @@
 package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateRouteRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.RouteResponse
 import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.ErrorResponse
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.util.UriComponentsBuilder
@@ -35,7 +37,13 @@ class RouteController(
 
     @Operation(summary = "List all routes")
     @GetMapping
-    fun getAll(): List<RouteResponse> = routeService.getAll().map { routeMapper.toResponse(it) }
+    fun getAll(
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): PagedResponse<RouteResponse> {
+        val paged = routeService.getAll(page, size)
+        return PagedResponse(paged.data.map { routeMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
+    }
 
     @Operation(summary = "Get a route by ID")
     @ApiResponse(responseCode = "404", description = "Route not found",

@@ -1,6 +1,7 @@
 package com.example.climbingapi.service
 
 import com.example.climbingapi.dto.CreateWallRequest
+import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateWallRequest
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.Wall
@@ -14,8 +15,11 @@ class WallService(
     private val routeService: RouteService
 ) {
 
-    fun getAll(): List<Wall> {
-        return wallRepository.getAll()
+    fun getAll(page: Int, size: Int): PagedResponse<Wall> {
+        val effectiveSize = size.coerceIn(1, 100)
+        val data = wallRepository.getAll(page, effectiveSize)
+        val total = wallRepository.count()
+        return PagedResponse(data, page, effectiveSize, total)
     }
 
     fun getById(id: Int): Wall {
