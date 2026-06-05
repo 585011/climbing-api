@@ -19,22 +19,6 @@ jobs:
     permissions:
       contents: read
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: ${{ secrets.DB_NAME }}
-          POSTGRES_USER: ${{ secrets.DB_USERNAME }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        ports:
-          - 5432:5432
-        options: 
-          --health-cmd="pg_isready -U postgres -d climbing_app"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-          
-
     steps:
     - uses: actions/checkout@v4
     
@@ -54,10 +38,6 @@ jobs:
 
     - name: Build and test
       run: ./gradlew build
-      env:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ secrets.DB_NAME }}
-        SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
-        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     # NOTE: The Gradle Wrapper is the default and recommended way to run Gradle (https://docs.gradle.org/current/userguide/gradle_wrapper.html).
     # If your project does not have the Gradle Wrapper configured, you can use the following configuration to run Gradle with a specified version.

@@ -1,12 +1,10 @@
 package com.example.climbingapi
 
+import com.example.climbingapi.integration.IntegrationTestBase
 import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest
-class ClimbingProjectApplicationTests {
+class ClimbingProjectApplicationTests : IntegrationTestBase() {
 
     @Test
-    fun contextLoads() {
-    }
+    fun contextLoads() {}
 }
