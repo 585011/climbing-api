@@ -5,7 +5,6 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 .codex
-docs/
 application-local.yaml
 .env
 .env.*
