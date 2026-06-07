@@ -14,7 +14,7 @@ class UserControllerIT : IntegrationTestBase() {
 
     private val baseUrl = "/api/users"
     private val meUrl = "$baseUrl/me"
-    private val validUser = """{"displayName":"Alex Honnold"}"""
+    private val validUser = """{"displayName":"Alex Honnold","email":"test@example.com"}"""
 
     @Test
     fun `POST me returns 201 with Location header`() {
@@ -36,7 +36,7 @@ class UserControllerIT : IntegrationTestBase() {
     fun `POST me with blank displayName returns 400`() {
         mockMvc.perform(
             post(meUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
-                .content("""{"displayName":""}""")
+                .content("""{"displayName":"","email":"test@example.com"}""")
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))

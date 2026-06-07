@@ -44,7 +44,7 @@ class UserServiceTest {
 
     @Test
     fun `create trims whitespace and delegates to repository`() {
-        val request = CreateUserRequest(displayName = "  Bob  ")
+        val request = CreateUserRequest(displayName = "  Bob  ", email = "  bob@example.com  ")
         val expected = sampleUser.copy(email = "bob@example.com", displayName = "Bob", auth0Id = "google-oauth2|bob-123")
         `when`(userRepository.create(User(null, "bob@example.com", "Bob", null, "google-oauth2|bob-123"))).thenReturn(expected)
 

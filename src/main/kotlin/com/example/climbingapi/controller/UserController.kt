@@ -70,8 +70,7 @@ class UserController(
         ucb: UriComponentsBuilder
     ): ResponseEntity<UserResponse> {
         val auth0Id = jwt.token.subject
-        val email = jwt.token.getClaimAsString("email")
-        val created = userMapper.toResponse(userService.create(request, auth0Id, email))
+        val created = userMapper.toResponse(userService.create(request, auth0Id, request.email))
         val location = ucb.path("/api/users/{id}").buildAndExpand(created.id).toUri()
         return ResponseEntity.created(location).body(created)
     }
