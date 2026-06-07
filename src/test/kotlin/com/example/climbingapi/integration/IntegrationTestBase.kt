@@ -7,10 +7,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.RequestPostProcessor
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.testcontainers.containers.PostgreSQLContainer
 
@@ -25,10 +27,12 @@ abstract class IntegrationTestBase {
 
         @DynamicPropertySource
         @JvmStatic
-        fun configureDataSource(registry: DynamicPropertyRegistry) {
+        fun configureProperties(registry: DynamicPropertyRegistry) {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri") { "https://test.auth0.local/" }
+            registry.add("auth0.audience") { "test-audience" }
         }
     }
 
@@ -43,8 +47,18 @@ abstract class IntegrationTestBase {
         )
     }
 
-    protected fun postJson(url: String, body: String): String =
-        mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body))
+    protected fun testJwt(
+        sub: String = "google-oauth2|test-user-123",
+        email: String = "test@example.com"
+    ): RequestPostProcessor = jwt().jwt { builder ->
+        builder.subject(sub)
+        builder.claim("email", email)
+    }
+
+    protected fun postJson(url: String, body: String, jwtPp: RequestPostProcessor = testJwt()): String =
+        mockMvc.perform(
+            post(url).with(jwtPp).contentType(MediaType.APPLICATION_JSON).content(body)
+        )
             .andExpect(status().isCreated)
             .andReturn().response.contentAsString
 

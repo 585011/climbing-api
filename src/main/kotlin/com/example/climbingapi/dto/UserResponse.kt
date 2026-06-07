@@ -6,5 +6,6 @@ data class UserResponse(
     val id: Int,
     val email: String,
     val displayName: String,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val auth0Id: String
 )

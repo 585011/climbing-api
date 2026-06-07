@@ -23,9 +23,15 @@ class RouteControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `GET routes without JWT returns 401`() {
+        mockMvc.perform(get(baseUrl))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
     fun `POST route returns 201 with Location header`() {
         mockMvc.perform(
-            post(baseUrl).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Slab Route","grade":"6a"}""")
         )
             .andExpect(status().isCreated)
@@ -37,7 +43,7 @@ class RouteControllerIT : IntegrationTestBase() {
     @Test
     fun `POST route with wallId zero returns 400`() {
         mockMvc.perform(
-            post(baseUrl).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":0}""")
         )
             .andExpect(status().isBadRequest)
@@ -46,9 +52,8 @@ class RouteControllerIT : IntegrationTestBase() {
 
     @Test
     fun `POST route with non-existent wallId returns 404`() {
-        // RouteService explicitly validates wall existence before inserting
         mockMvc.perform(
-            post(baseUrl).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":9999,"name":"Ghost Route"}""")
         )
             .andExpect(status().isNotFound)
@@ -59,7 +64,7 @@ class RouteControllerIT : IntegrationTestBase() {
     fun `GET all routes returns paged response`() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
-        mockMvc.perform(get(baseUrl))
+        mockMvc.perform(get(baseUrl).with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.total").value(1))
             .andExpect(jsonPath("$.data[0].name").value("Slab Route"))
@@ -69,14 +74,14 @@ class RouteControllerIT : IntegrationTestBase() {
     fun `GET route by id returns 200`() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
-        mockMvc.perform(get("$baseUrl/1"))
+        mockMvc.perform(get("$baseUrl/1").with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.name").value("Slab Route"))
     }
 
     @Test
     fun `GET route by unknown id returns 404`() {
-        mockMvc.perform(get("$baseUrl/999"))
+        mockMvc.perform(get("$baseUrl/999").with(testJwt()))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.errorCode").value("NOT_FOUND"))
     }
@@ -86,7 +91,7 @@ class RouteControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route","grade":"6a"}""")
 
         mockMvc.perform(
-            put("$baseUrl/1").contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Overhang","grade":"7b"}""")
         )
             .andExpect(status().isOk)
@@ -97,7 +102,7 @@ class RouteControllerIT : IntegrationTestBase() {
     @Test
     fun `PUT route with unknown id returns 404`() {
         mockMvc.perform(
-            put("$baseUrl/999").contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/999").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Overhang"}""")
         )
             .andExpect(status().isNotFound)
@@ -108,7 +113,7 @@ class RouteControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
         mockMvc.perform(
-            put("$baseUrl/1").contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":9999,"name":"Overhang"}""")
         )
             .andExpect(status().isNotFound)
@@ -118,13 +123,13 @@ class RouteControllerIT : IntegrationTestBase() {
     fun `DELETE route returns 204`() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
-        mockMvc.perform(delete("$baseUrl/1"))
+        mockMvc.perform(delete("$baseUrl/1").with(testJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
     fun `DELETE route with unknown id returns 404`() {
-        mockMvc.perform(delete("$baseUrl/999"))
+        mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
             .andExpect(status().isNotFound)
     }
 }

@@ -13,77 +13,90 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 class UserControllerIT : IntegrationTestBase() {
 
     private val baseUrl = "/api/users"
-    private val validUser = """{"email":"alex@example.com","displayName":"Alex Honnold"}"""
+    private val meUrl = "$baseUrl/me"
+    private val validUser = """{"displayName":"Alex Honnold"}"""
 
     @Test
-    fun `POST user returns 201 with Location header`() {
-        mockMvc.perform(post(baseUrl).contentType(MediaType.APPLICATION_JSON).content(validUser))
+    fun `POST me returns 201 with Location header`() {
+        mockMvc.perform(post(meUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content(validUser))
             .andExpect(status().isCreated)
             .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/api/users/")))
-            .andExpect(jsonPath("$.email").value("alex@example.com"))
+            .andExpect(jsonPath("$.email").value("test@example.com"))
             .andExpect(jsonPath("$.displayName").value("Alex Honnold"))
+            .andExpect(jsonPath("$.auth0Id").value("google-oauth2|test-user-123"))
     }
 
     @Test
-    fun `POST user with blank email returns 400`() {
+    fun `POST me without JWT returns 401`() {
+        mockMvc.perform(post(meUrl).contentType(MediaType.APPLICATION_JSON).content(validUser))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `POST me with blank displayName returns 400`() {
         mockMvc.perform(
-            post(baseUrl).contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email":"","displayName":"Alex"}""")
+            post(meUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"displayName":""}""")
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
     }
 
     @Test
-    fun `POST user with invalid email format returns 400`() {
-        mockMvc.perform(
-            post(baseUrl).contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email":"not-an-email","displayName":"Alex"}""")
-        )
-            .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
-    }
+    fun `POST me with same auth0Id twice returns 409`() {
+        postJson(meUrl, validUser)
 
-    @Test
-    fun `POST user with duplicate email returns 409`() {
-        postJson(baseUrl, validUser)
-
-        mockMvc.perform(post(baseUrl).contentType(MediaType.APPLICATION_JSON).content(validUser))
+        mockMvc.perform(post(meUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content(validUser))
             .andExpect(status().isConflict)
     }
 
     @Test
-    fun `GET all users returns paged response`() {
-        postJson(baseUrl, validUser)
+    fun `GET me returns current user`() {
+        postJson(meUrl, validUser)
 
-        mockMvc.perform(get(baseUrl))
+        mockMvc.perform(get(meUrl).with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.auth0Id").value("google-oauth2|test-user-123"))
+    }
+
+    @Test
+    fun `GET me returns 404 when user not registered`() {
+        mockMvc.perform(get(meUrl).with(testJwt()))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `GET all users returns paged response`() {
+        postJson(meUrl, validUser)
+
+        mockMvc.perform(get(baseUrl).with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.total").value(1))
-            .andExpect(jsonPath("$.data[0].email").value("alex@example.com"))
+            .andExpect(jsonPath("$.data[0].email").value("test@example.com"))
     }
 
     @Test
     fun `GET user by id returns 200`() {
-        postJson(baseUrl, validUser)
+        postJson(meUrl, validUser)
 
-        mockMvc.perform(get("$baseUrl/1"))
+        mockMvc.perform(get("$baseUrl/1").with(testJwt()))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.email").value("alex@example.com"))
+            .andExpect(jsonPath("$.email").value("test@example.com"))
     }
 
     @Test
     fun `GET user by unknown id returns 404`() {
-        mockMvc.perform(get("$baseUrl/999"))
+        mockMvc.perform(get("$baseUrl/999").with(testJwt()))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.errorCode").value("NOT_FOUND"))
     }
 
     @Test
     fun `PUT user returns updated user`() {
-        postJson(baseUrl, validUser)
+        postJson(meUrl, validUser)
 
         mockMvc.perform(
-            put("$baseUrl/1").contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"email":"tommy@example.com","displayName":"Tommy Caldwell"}""")
         )
             .andExpect(status().isOk)
@@ -92,9 +105,20 @@ class UserControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `PUT user with different user returns 403`() {
+        postJson(meUrl, validUser)
+
+        mockMvc.perform(
+            put("$baseUrl/1").with(testJwt(sub = "google-oauth2|other-999")).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email":"hacker@example.com","displayName":"Hacker"}""")
+        )
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
     fun `PUT user with unknown id returns 404`() {
         mockMvc.perform(
-            put("$baseUrl/999").contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/999").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"email":"tommy@example.com","displayName":"Tommy"}""")
         )
             .andExpect(status().isNotFound)
@@ -102,42 +126,60 @@ class UserControllerIT : IntegrationTestBase() {
 
     @Test
     fun `DELETE user returns 204`() {
-        postJson(baseUrl, validUser)
+        postJson(meUrl, validUser)
 
-        mockMvc.perform(delete("$baseUrl/1"))
+        mockMvc.perform(delete("$baseUrl/1").with(testJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
+    fun `DELETE user with different user returns 403`() {
+        postJson(meUrl, validUser)
+
+        mockMvc.perform(delete("$baseUrl/1").with(testJwt(sub = "google-oauth2|other-999")))
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
     fun `DELETE user with unknown id returns 404`() {
-        mockMvc.perform(delete("$baseUrl/999"))
+        mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
             .andExpect(status().isNotFound)
     }
 
     @Test
     fun `DELETE user with ticks cascades and returns 204`() {
-        // V4 migration added ON DELETE CASCADE on user_route_ticks.user_id, so deleting a user
-        // cascades their ticks. The Swagger annotation claiming 409 is outdated.
-        val userId = extractId(postJson(baseUrl, validUser))
+        val userId = extractId(postJson(meUrl, validUser))
         val areaId = extractId(postJson("/api/climbing-areas", """{"name":"Area"}"""))
         val wallId = extractId(postJson("/api/walls", """{"areaId":$areaId,"name":"Wall"}"""))
         val routeId = extractId(postJson("/api/routes", """{"wallId":$wallId,"name":"Route"}"""))
         postJson("/api/users/$userId/ticks", """{"routeId":$routeId}""")
 
-        mockMvc.perform(delete("$baseUrl/$userId"))
+        mockMvc.perform(delete("$baseUrl/$userId").with(testJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
     fun `GET user ticks returns paged response`() {
-        val userId = extractId(postJson(baseUrl, validUser))
+        val userId = extractId(postJson(meUrl, validUser))
         val areaId = extractId(postJson("/api/climbing-areas", """{"name":"Area"}"""))
         val wallId = extractId(postJson("/api/walls", """{"areaId":$areaId,"name":"Wall"}"""))
         val routeId = extractId(postJson("/api/routes", """{"wallId":$wallId,"name":"Route"}"""))
         postJson("/api/users/$userId/ticks", """{"routeId":$routeId}""")
 
-        mockMvc.perform(get("$baseUrl/$userId/ticks"))
+        mockMvc.perform(get("$baseUrl/$userId/ticks").with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.total").value(1))
+    }
+
+    @Test
+    fun `GET user ticks with different user returns 403`() {
+        val userId = extractId(postJson(meUrl, validUser))
+        val areaId = extractId(postJson("/api/climbing-areas", """{"name":"Area"}"""))
+        val wallId = extractId(postJson("/api/walls", """{"areaId":$areaId,"name":"Wall"}"""))
+        val routeId = extractId(postJson("/api/routes", """{"wallId":$wallId,"name":"Route"}"""))
+        postJson("/api/users/$userId/ticks", """{"routeId":$routeId}""")
+
+        mockMvc.perform(get("$baseUrl/$userId/ticks").with(testJwt(sub = "google-oauth2|other-999")))
+            .andExpect(status().isForbidden)
     }
 }

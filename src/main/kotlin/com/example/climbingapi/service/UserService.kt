@@ -3,6 +3,7 @@ package com.example.climbingapi.service
 import com.example.climbingapi.dto.CreateUserRequest
 import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateUserRequest
+import com.example.climbingapi.exception.ForbiddenException
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.User
 import com.example.climbingapi.repository.UserRepository
@@ -24,21 +25,30 @@ class UserService(
         return userRepository.getById(id) ?: throw NotFoundException("User not found: $id")
     }
 
-    fun create(request: CreateUserRequest): User {
+    fun getByAuth0Id(auth0Id: String): User? = userRepository.findByAuth0Id(auth0Id)
+
+    fun assertOwner(userId: Int, callerAuth0Id: String) {
+        val user = getById(userId)
+        if (user.auth0Id != callerAuth0Id) throw ForbiddenException("Access denied")
+    }
+
+    fun create(request: CreateUserRequest, auth0Id: String, email: String): User {
         return userRepository.create(User(
             id = null,
-            email = request.email?.trim(),
-            displayName = request.displayName?.trim(),
-            createdAt = null
+            email = email.trim(),
+            displayName = request.displayName.trim(),
+            createdAt = null,
+            auth0Id = auth0Id
         ))
     }
 
     fun update(id: Int, request: UpdateUserRequest): User {
         return userRepository.update(id, User(
             id = null,
-            email = request.email?.trim(),
-            displayName = request.displayName?.trim(),
-            createdAt = null
+            email = request.email.trim(),
+            displayName = request.displayName.trim(),
+            createdAt = null,
+            auth0Id = null
         )) ?: throw NotFoundException("User not found: $id")
     }
 

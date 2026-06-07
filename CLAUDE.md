@@ -52,10 +52,21 @@ One `*ControllerIT.kt` file per controller covers happy-path CRUD, 404, 400, 409
 
 ## Environment
 
-Copy `.env` values as environment variables before running. The app reads `POSTGRES_DB`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` from the environment (see `application.yaml`).
+Copy `.env` values as environment variables before running. The app reads the following from the environment (see `application.yaml`):
+
+| Variable | Where to find it |
+|----------|-----------------|
+| `POSTGRES_DB` | `.env` |
+| `SPRING_DATASOURCE_USERNAME` | `.env` |
+| `SPRING_DATASOURCE_PASSWORD` | `.env` |
+| `AUTH0_ISSUER_URI` | Auth0 dashboard → Applications → APIs → your API → Settings (e.g. `https://YOUR_TENANT.auth0.com/`) |
+| `AUTH0_AUDIENCE` | Auth0 dashboard → Applications → APIs → your API → API Audience |
+| `ALLOW_ORIGINS` | Production frontend URL for CORS (optional; localhost:5173 and localhost:8000 are always allowed) |
 
 ```bash
 export $(grep -v '^#' .env | xargs)
+export AUTH0_ISSUER_URI=https://YOUR_TENANT.auth0.com/
+export AUTH0_AUDIENCE=YOUR_API_IDENTIFIER
 ```
 
 Requires **Java 21** (the Gradle toolchain will download it automatically if not present).
@@ -90,14 +101,15 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
 | GET | `/api/users` | List all users; supports `?page=0&size=20` (max 100) |
 | GET | `/api/users/{id}` | 404 if not found |
-| POST | `/api/users` | Returns 201 |
-| PUT | `/api/users/{id}` | Full replace; 404 if not found |
-| DELETE | `/api/users/{id}` | 204; 409 if user has ticks |
-| GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20`; 404 if user not found |
-| POST | `/api/users/{userId}/ticks` | Returns 201; validates user + route exist |
-| GET | `/api/users/{userId}/ticks/{tickId}` | 404 if user or tick not found |
-| PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote |
-| DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 404 if not found |
+| GET | `/api/users/me` | Returns the authenticated user's own profile; 404 if not yet registered |
+| POST | `/api/users/me` | Self-register: creates user from JWT claims (`sub` → auth0Id, `email` claim); body: `{displayName}`; returns 201 |
+| PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
+| DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
+| GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20`; 403 if not owner; 404 if user not found |
+| POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist |
+| GET | `/api/users/{userId}/ticks/{tickId}` | 403 if not owner; 404 if user or tick not found |
+| PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote; 403 if not owner |
+| DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -120,7 +132,8 @@ All five domain types have a complete Controller/Service/Repository stack.
 - Mappers only implement `toResponse()` — there is no `toModel()` direction.
 - Unit tests for all 5 services use Mockito (`@ExtendWith(MockitoExtension::class)`) — no Spring context needed.
 - All REST endpoints are prefixed with `/api`.
-- No authentication or authorisation is implemented yet.
+- All `/api/**` endpoints require a valid Auth0 JWT (`Authorization: Bearer <token>`). Returns 401 if missing, 403 if the caller is not the resource owner.
+- Tick and user-write endpoints enforce ownership: the JWT `sub` claim must match `auth0_id` on the user record.
 - Multi-step service methods (e.g. validate → insert) are annotated `@Transactional`.
 - List endpoints return `PagedResponse<T>` with `data`, `page`, `pageSize`, `total` fields. Size is clamped to max 100 in the service layer.
 
@@ -134,11 +147,12 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V2__seed_test_data.sql` | Sample wall + routes in Bergen |
 | `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
 | `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
+| `V5__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
 
 ## Related projects
 
 - **climbing-web** — companion frontend at https://github.com/585011/climbing-web.
-  `CorsConfig.kt` is wired for this frontend. API changes that affect the contract should be coordinated with that repo.
+  CORS is configured in `SecurityConfig.kt` for this frontend. API changes that affect the contract should be coordinated with that repo.
 
 ## Code guidelines
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
