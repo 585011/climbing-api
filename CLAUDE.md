@@ -62,6 +62,7 @@ Copy `.env` values as environment variables before running. The app reads the fo
 | `AUTH0_ISSUER_URI` | Auth0 dashboard → Applications → APIs → your API → Settings (e.g. `https://YOUR_TENANT.auth0.com/`) |
 | `AUTH0_AUDIENCE` | Auth0 dashboard → Applications → APIs → your API → API Audience |
 | `ALLOW_ORIGINS` | Production frontend URL for CORS (optional; localhost:5173 and localhost:8000 are always allowed) |
+| `SPRING_PROFILES_ACTIVE` | Set to `prod` in production to suppress JDBC debug logging (`application-prod.yaml`) |
 
 ```bash
 export $(grep -v '^#' .env | xargs)

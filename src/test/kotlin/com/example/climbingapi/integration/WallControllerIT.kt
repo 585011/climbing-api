@@ -156,4 +156,24 @@ class WallControllerIT : IntegrationTestBase() {
         mockMvc.perform(get("$baseUrl/999/routes").with(testJwt()))
             .andExpect(status().isNotFound)
     }
+
+    @Test
+    fun `POST wall with latitude above 90 returns 400`() {
+        mockMvc.perform(
+            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"areaId":$areaId,"name":"North Face","latitude":91.0}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `POST wall with longitude below minus 180 returns 400`() {
+        mockMvc.perform(
+            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"areaId":$areaId,"name":"North Face","longitude":-181.0}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
 }

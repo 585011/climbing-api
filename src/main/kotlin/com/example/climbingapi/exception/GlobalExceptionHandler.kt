@@ -1,6 +1,7 @@
 package com.example.climbingapi.exception
 
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.ConstraintViolationException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -34,6 +35,14 @@ class GlobalExceptionHandler {
     )
     fun handleBadRequest(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         val message = extractBadRequestMessage(exception)
+        return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request)
+    }
+
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolation(exception: ConstraintViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        val message = exception.constraintViolations.joinToString("; ") { cv ->
+            "${cv.propertyPath}: ${cv.message}"
+        }
         return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request)
     }
 

@@ -13,8 +13,11 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = "Routes", description = "Manage climbing routes")
+@Validated
 @RestController
 @RequestMapping("/api/routes")
 class RouteController(
@@ -38,8 +42,8 @@ class RouteController(
     @Operation(summary = "List all routes")
     @GetMapping
     fun getAll(
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int
+        @RequestParam(defaultValue = "0") @Min(0) page: Int,
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int
     ): PagedResponse<RouteResponse> {
         val paged = routeService.getAll(page, size)
         return PagedResponse(paged.data.map { routeMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)

@@ -132,4 +132,18 @@ class RouteControllerIT : IntegrationTestBase() {
         mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
             .andExpect(status().isNotFound)
     }
+
+    @Test
+    fun `GET routes with negative page returns 400`() {
+        mockMvc.perform(get("$baseUrl?page=-1").with(testJwt()))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `GET routes with size above 100 returns 400`() {
+        mockMvc.perform(get("$baseUrl?size=101").with(testJwt()))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
 }

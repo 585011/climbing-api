@@ -53,6 +53,7 @@ Swagger UI is available at `http://localhost:8080/swagger-ui.html`.
 | `AUTH0_ISSUER_URI` | Auth0 issuer URI — Auth0 dashboard → Applications → APIs → your API → Issuer (e.g. `https://YOUR_TENANT.auth0.com/`) |
 | `AUTH0_AUDIENCE` | Auth0 API audience — Auth0 dashboard → Applications → APIs → your API → API Audience |
 | `ALLOW_ORIGINS` | Optional: production frontend URL added to the CORS allowlist (localhost:5173 and localhost:8000 are always allowed) |
+| `SPRING_PROFILES_ACTIVE` | Set to `prod` in production to suppress JDBC debug logging |
 
 ## Authentication
 
