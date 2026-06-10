@@ -30,6 +30,16 @@ class SecurityConfig(
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .cors { it.configurationSource(corsConfigurationSource()) }
+            .headers { headers ->
+                headers.frameOptions { it.deny() }
+                headers.contentTypeOptions { }
+                headers.httpStrictTransportSecurity { hsts ->
+                    hsts.includeSubDomains(true)
+                    hsts.maxAgeInSeconds(31536000)
+                }
+                headers.cacheControl { }
+                headers.xssProtection { it.disable() }
+            }
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .oauth2ResourceServer { it.jwt { jwt -> jwt.decoder(jwtDecoder()) } }
             .exceptionHandling { it.authenticationEntryPoint(BearerTokenAuthenticationEntryPoint()) }
@@ -58,7 +68,8 @@ class SecurityConfig(
             System.getenv("ALLOW_ORIGINS") ?: ""
         ).filter { it.isNotBlank() }
         config.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        config.allowedHeaders = listOf("*")
+        config.allowedHeaders = listOf("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With")
+        config.exposedHeaders = listOf("Location")
         config.allowCredentials = true
         config.maxAge = 3600L
         val source = UrlBasedCorsConfigurationSource()

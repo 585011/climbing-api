@@ -178,4 +178,47 @@ class TickControllerIT : IntegrationTestBase() {
             .andExpect(jsonPath("$.total").value(1))
             .andExpect(jsonPath("$.data[0].routeId").value(routeId))
     }
+
+    @Test
+    fun `POST tick with invalid style returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"style":"invalid-style"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `POST tick with script in personalNote returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"personalNote":"<script>alert(1)</script>"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `POST tick with personalNote over 500 chars returns 400`() {
+        val longNote = "a".repeat(501)
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"personalNote":"$longNote"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `PUT tick with script in personalNote returns 400`() {
+        postJson(ticksUrl(), """{"routeId":$routeId}""")
+
+        mockMvc.perform(
+            put("${ticksUrl()}/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"personalNote":"<img src=x onerror=alert(1)>"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
 }
