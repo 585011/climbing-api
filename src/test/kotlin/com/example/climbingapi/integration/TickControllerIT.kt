@@ -18,7 +18,7 @@ class TickControllerIT : IntegrationTestBase() {
 
     @BeforeEach
     fun setup() {
-        userId = extractId(postJson("/api/users/me", """{"displayName":"Alex"}"""))
+        userId = extractId(postJson("/api/users/me", """{"displayName":"Alex","email":"test@example.com"}"""))
         val areaId = extractId(postJson("/api/climbing-areas", """{"name":"Test Area"}"""))
         val wallId = extractId(postJson("/api/walls", """{"areaId":$areaId,"name":"Test Wall"}"""))
         routeId = extractId(postJson("/api/routes", """{"wallId":$wallId,"name":"Test Route"}"""))

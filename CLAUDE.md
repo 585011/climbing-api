@@ -144,10 +144,8 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | File | Purpose |
 |------|---------|
 | `V1__create_tables.sql` | Full schema (all 5 tables) |
-| `V2__seed_test_data.sql` | Sample wall + routes in Bergen |
-| `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
-| `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
-| `V5__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
+| `V2__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
+| `V3__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
 
 ## Related projects
 
