@@ -6,5 +6,6 @@ data class User(
     val id: Int?,
     val email: String?,
     val displayName: String?,
-    val createdAt: OffsetDateTime?
+    val createdAt: OffsetDateTime?,
+    val auth0Id: String?
 )

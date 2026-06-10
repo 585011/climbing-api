@@ -12,7 +12,8 @@ class UserMapper {
             id = user.id!!,
             email = user.email!!,
             displayName = user.displayName!!,
-            createdAt = user.createdAt!!
+            createdAt = user.createdAt!!,
+            auth0Id = user.auth0Id!!
         )
     }
 }

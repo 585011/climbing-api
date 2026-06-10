@@ -21,6 +21,11 @@ class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.message ?: "Not found", request)
     }
 
+    @ExceptionHandler(ForbiddenException::class)
+    fun handleForbidden(exception: ForbiddenException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", exception.message ?: "Access denied", request)
+    }
+
     @ExceptionHandler(
         MethodArgumentNotValidException::class,
         MethodArgumentTypeMismatchException::class,

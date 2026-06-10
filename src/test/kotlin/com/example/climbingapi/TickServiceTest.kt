@@ -30,7 +30,7 @@ class TickServiceTest {
     @InjectMocks
     lateinit var tickService: TickService
 
-    private val sampleUser = User(1, "alice@example.com", "Alice", OffsetDateTime.now())
+    private val sampleUser = User(1, "alice@example.com", "Alice", OffsetDateTime.now(), "google-oauth2|alice-123")
     private val sampleRoute = Route(1, 1, "Test Route", "6a", 20, "sport", 8, null, null, null, OffsetDateTime.now())
     private val sampleTick = UserRoute(1, 1, 1, OffsetDateTime.now(), "onsight", 4, "Good crux at the top")
 

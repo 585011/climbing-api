@@ -17,6 +17,15 @@ spring:
   flyway:
     enabled: true
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH0_ISSUER_URI}
+
+auth0:
+  audience: ${AUTH0_AUDIENCE}
+
 logging:
   level:
     root: INFO

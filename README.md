@@ -11,6 +11,7 @@ REST API for managing climbing walls, routes, and user ticks.
 | Database | PostgreSQL 16 |
 | Data access | Spring Data JDBC (`JdbcTemplate`, no ORM) |
 | Migrations | Flyway |
+| Auth | Auth0 (JWT / OAuth2 Resource Server) |
 | API docs | OpenAPI 3 / Swagger UI (springdoc) |
 | Build | Gradle |
 
@@ -49,6 +50,24 @@ Swagger UI is available at `http://localhost:8080/swagger-ui.html`.
 | `SPRING_DATASOURCE_USERNAME` | Username Spring Boot uses to connect |
 | `SPRING_DATASOURCE_PASSWORD` | Password Spring Boot uses to connect |
 | `SPRING_DATASOURCE_URL` | JDBC URL (only needed for local `bootRun`; compose overrides it) |
+| `AUTH0_ISSUER_URI` | Auth0 issuer URI — Auth0 dashboard → Applications → APIs → your API → Issuer (e.g. `https://YOUR_TENANT.auth0.com/`) |
+| `AUTH0_AUDIENCE` | Auth0 API audience — Auth0 dashboard → Applications → APIs → your API → API Audience |
+| `ALLOW_ORIGINS` | Optional: production frontend URL added to the CORS allowlist (localhost:5173 and localhost:8000 are always allowed) |
+
+## Authentication
+
+All `/api/**` endpoints require a valid JWT in the `Authorization: Bearer <token>` header.
+
+- The frontend logs users in via Auth0 (Google OAuth) and attaches the JWT to every API request.
+- The API validates the JWT signature against Auth0's JWK set and checks the `iss` and `aud` claims.
+- **Email allowlist** is enforced at the Auth0 level via an Action — the API never receives tokens for blocked users.
+- **Ownership**: tick and user-write endpoints enforce that the caller's JWT `sub` matches the `auth0_id` on the user record (403 if not).
+
+### Onboarding flow
+
+1. User logs in on the frontend → receives JWT from Auth0.
+2. Frontend calls `POST /api/users/me` with `{"displayName": "..."}` and the JWT → creates a user row (auth0Id + email stored from JWT claims).
+3. Frontend calls `GET /api/users/me` to get the DB `id` for subsequent requests.
 
 ## Architecture
 
@@ -103,14 +122,15 @@ Deleting a parent cascades to all children (area → walls → routes → ticks;
 | PUT | `/api/routes/{id}` | Full replace | 200 / 404 |
 | GET | `/api/users` | List all users | 200 |
 | GET | `/api/users/{id}` | Get user by ID | 200 / 404 |
-| POST | `/api/users` | Create user | 201 |
-| PUT | `/api/users/{id}` | Full replace | 200 / 404 |
-| DELETE | `/api/users/{id}` | Delete user | 204 / 404 / 409 |
-| GET | `/api/users/{userId}/ticks` | List user's ticks | 200 / 404 |
-| POST | `/api/users/{userId}/ticks` | Tick a route | 201 / 404 / 409 |
-| GET | `/api/users/{userId}/ticks/{tickId}` | Get tick | 200 / 404 |
-| PUT | `/api/users/{userId}/ticks/{tickId}` | Update tick | 200 / 404 |
-| DELETE | `/api/users/{userId}/ticks/{tickId}` | Delete tick | 204 / 404 |
+| GET | `/api/users/me` | Get own profile | 200 / 404 |
+| POST | `/api/users/me` | Self-register (body: `{displayName}`) | 201 / 409 |
+| PUT | `/api/users/{id}` | Full replace (owner only) | 200 / 403 / 404 |
+| DELETE | `/api/users/{id}` | Delete user (owner only) | 204 / 403 / 404 |
+| GET | `/api/users/{userId}/ticks` | List user's ticks (owner only) | 200 / 403 / 404 |
+| POST | `/api/users/{userId}/ticks` | Tick a route (owner only) | 201 / 403 / 404 / 409 |
+| GET | `/api/users/{userId}/ticks/{tickId}` | Get tick (owner only) | 200 / 403 / 404 |
+| PUT | `/api/users/{userId}/ticks/{tickId}` | Update tick (owner only) | 200 / 403 / 404 |
+| DELETE | `/api/users/{userId}/ticks/{tickId}` | Delete tick (owner only) | 204 / 403 / 404 |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -124,6 +144,7 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | `V2__seed_test_data.sql` | Sample wall + 3 routes in Bergen |
 | `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
 | `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE constraints, CASCADE deletes, FK indexes, lat/lng precision |
+| `V5__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 
@@ -133,7 +154,7 @@ New migrations must follow the `V{n}__{description}.sql` naming convention.
 ./gradlew test
 ```
 
-Unit tests for `UserService` and `TickService` use Mockito (no Spring context). The context-load smoke test requires the database to be running.
+Unit tests for all 5 services use Mockito (no Spring context). Integration tests use Testcontainers — no external database or Auth0 credentials required; JWTs are mocked via `SecurityMockMvcRequestPostProcessors.jwt()`.
 
 ## Building
 
