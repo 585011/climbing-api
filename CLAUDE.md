@@ -135,6 +135,7 @@ All five domain types have a complete Controller/Service/Repository stack.
 - All REST endpoints are prefixed with `/api`.
 - All `/api/**` endpoints require a valid Auth0 JWT (`Authorization: Bearer <token>`). Returns 401 if missing, 403 if the caller is not the resource owner.
 - Tick and user-write endpoints enforce ownership: the JWT `sub` claim must match `auth0_id` on the user record.
+- Catalog writes (POST/PUT/DELETE on `/api/climbing-areas`, `/api/walls`, `/api/routes`) require the `admin` role. Roles come from the `https://climbing-api/roles` JWT claim (set by an Auth0 post-login Action) and are mapped to `ROLE_admin` in `SecurityConfig.kt`. Reads of these resources, and own-resource tick/user writes, need only authentication. The role check runs in the security filter *before* controller validation, so a non-admin write returns 403 (never 400).
 - Multi-step service methods (e.g. validate → insert) are annotated `@Transactional`.
 - List endpoints return `PagedResponse<T>` with `data`, `page`, `pageSize`, `total` fields. Size is clamped to max 100 in the service layer.
 
