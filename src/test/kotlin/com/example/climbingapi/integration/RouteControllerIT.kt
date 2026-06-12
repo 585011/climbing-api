@@ -31,7 +31,7 @@ class RouteControllerIT : IntegrationTestBase() {
     @Test
     fun `POST route returns 201 with Location header`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Slab Route","grade":"6a"}""")
         )
             .andExpect(status().isCreated)
@@ -41,9 +41,19 @@ class RouteControllerIT : IntegrationTestBase() {
     }
 
     @Test
-    fun `POST route with wallId zero returns 400`() {
+    fun `POST route without admin role returns 403`() {
         mockMvc.perform(
             post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"wallId":$wallId,"name":"Slab Route"}""")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+    }
+
+    @Test
+    fun `POST route with wallId zero returns 400`() {
+        mockMvc.perform(
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":0}""")
         )
             .andExpect(status().isBadRequest)
@@ -53,7 +63,7 @@ class RouteControllerIT : IntegrationTestBase() {
     @Test
     fun `POST route with non-existent wallId returns 404`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":9999,"name":"Ghost Route"}""")
         )
             .andExpect(status().isNotFound)
@@ -91,7 +101,7 @@ class RouteControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route","grade":"6a"}""")
 
         mockMvc.perform(
-            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Overhang","grade":"7b"}""")
         )
             .andExpect(status().isOk)
@@ -102,7 +112,7 @@ class RouteControllerIT : IntegrationTestBase() {
     @Test
     fun `PUT route with unknown id returns 404`() {
         mockMvc.perform(
-            put("$baseUrl/999").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/999").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":$wallId,"name":"Overhang"}""")
         )
             .andExpect(status().isNotFound)
@@ -113,7 +123,7 @@ class RouteControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
         mockMvc.perform(
-            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"wallId":9999,"name":"Overhang"}""")
         )
             .andExpect(status().isNotFound)
@@ -123,13 +133,13 @@ class RouteControllerIT : IntegrationTestBase() {
     fun `DELETE route returns 204`() {
         postJson(baseUrl, """{"wallId":$wallId,"name":"Slab Route"}""")
 
-        mockMvc.perform(delete("$baseUrl/1").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/1").with(adminJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
     fun `DELETE route with unknown id returns 404`() {
-        mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/999").with(adminJwt()))
             .andExpect(status().isNotFound)
     }
 

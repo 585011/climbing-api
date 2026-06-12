@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -55,7 +56,16 @@ abstract class IntegrationTestBase {
         builder.claim("email", email)
     }
 
-    protected fun postJson(url: String, body: String, jwtPp: RequestPostProcessor = testJwt()): String =
+    protected fun adminJwt(
+        sub: String = "google-oauth2|test-user-123",
+        email: String = "test@example.com"
+    ): RequestPostProcessor = jwt().jwt { builder ->
+        builder.subject(sub)
+        builder.claim("email", email)
+        builder.claim("https://climbing-api/roles", listOf("admin"))
+    }.authorities(SimpleGrantedAuthority("ROLE_admin"))
+
+    protected fun postJson(url: String, body: String, jwtPp: RequestPostProcessor = adminJwt()): String =
         mockMvc.perform(
             post(url).with(jwtPp).contentType(MediaType.APPLICATION_JSON).content(body)
         )

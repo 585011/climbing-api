@@ -43,7 +43,7 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
 
     @Test
     fun `POST area returns 201 with Location header`() {
-        mockMvc.perform(post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content(validArea))
+        mockMvc.perform(post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON).content(validArea))
             .andExpect(status().isCreated)
             .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/api/climbing-areas/")))
             .andExpect(jsonPath("$.id").value(1))
@@ -51,8 +51,15 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `POST area without admin role returns 403`() {
+        mockMvc.perform(post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content(validArea))
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+    }
+
+    @Test
     fun `POST area with blank name returns 400`() {
-        mockMvc.perform(post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content("""{"name":""}"""))
+        mockMvc.perform(post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON).content("""{"name":""}"""))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
     }
@@ -78,7 +85,7 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
         postJson(baseUrl, validArea)
 
         mockMvc.perform(
-            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":"Siurana","region":"Catalonia"}""")
         )
             .andExpect(status().isOk)
@@ -89,7 +96,7 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
     @Test
     fun `PUT area with unknown id returns 404`() {
         mockMvc.perform(
-            put("$baseUrl/999").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/999").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":"Siurana"}""")
         )
             .andExpect(status().isNotFound)
@@ -100,7 +107,7 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
         postJson(baseUrl, validArea)
 
         mockMvc.perform(
-            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":""}""")
         )
             .andExpect(status().isBadRequest)
@@ -111,13 +118,13 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
     fun `DELETE area returns 204`() {
         postJson(baseUrl, validArea)
 
-        mockMvc.perform(delete("$baseUrl/1").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/1").with(adminJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
     fun `DELETE area with unknown id returns 404`() {
-        mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/999").with(adminJwt()))
             .andExpect(status().isNotFound)
     }
 
@@ -126,7 +133,7 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
         postJson(baseUrl, validArea)
         postJson("/api/walls", """{"areaId":1,"name":"Main Wall"}""")
 
-        mockMvc.perform(delete("$baseUrl/1").with(testJwt())).andExpect(status().isNoContent)
+        mockMvc.perform(delete("$baseUrl/1").with(adminJwt())).andExpect(status().isNoContent)
 
         mockMvc.perform(get("/api/walls/1").with(testJwt()))
             .andExpect(status().isNotFound)

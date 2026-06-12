@@ -30,7 +30,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `POST wall returns 201 with Location header`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":"North Face"}""")
         )
             .andExpect(status().isCreated)
@@ -40,9 +40,19 @@ class WallControllerIT : IntegrationTestBase() {
     }
 
     @Test
-    fun `POST wall with areaId zero returns 400`() {
+    fun `POST wall without admin role returns 403`() {
         mockMvc.perform(
             post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"areaId":$areaId,"name":"North Face"}""")
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+    }
+
+    @Test
+    fun `POST wall with areaId zero returns 400`() {
+        mockMvc.perform(
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":0,"name":"North Face"}""")
         )
             .andExpect(status().isBadRequest)
@@ -52,7 +62,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `POST wall with non-existent areaId returns 409 from FK violation`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":9999,"name":"Ghost Wall"}""")
         )
             .andExpect(status().isConflict)
@@ -61,7 +71,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `POST wall with blank name returns 400`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":""}""")
         )
             .andExpect(status().isBadRequest)
@@ -99,7 +109,7 @@ class WallControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
 
         mockMvc.perform(
-            put("$baseUrl/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/1").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":"South Slab"}""")
         )
             .andExpect(status().isOk)
@@ -109,7 +119,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `PUT wall with unknown id returns 404`() {
         mockMvc.perform(
-            put("$baseUrl/999").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            put("$baseUrl/999").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":"South Slab"}""")
         )
             .andExpect(status().isNotFound)
@@ -119,13 +129,13 @@ class WallControllerIT : IntegrationTestBase() {
     fun `DELETE wall returns 204`() {
         postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
 
-        mockMvc.perform(delete("$baseUrl/1").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/1").with(adminJwt()))
             .andExpect(status().isNoContent)
     }
 
     @Test
     fun `DELETE wall with unknown id returns 404`() {
-        mockMvc.perform(delete("$baseUrl/999").with(testJwt()))
+        mockMvc.perform(delete("$baseUrl/999").with(adminJwt()))
             .andExpect(status().isNotFound)
     }
 
@@ -134,7 +144,7 @@ class WallControllerIT : IntegrationTestBase() {
         postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
         postJson("/api/routes", """{"wallId":1,"name":"Test Route"}""")
 
-        mockMvc.perform(delete("$baseUrl/1").with(testJwt())).andExpect(status().isNoContent)
+        mockMvc.perform(delete("$baseUrl/1").with(adminJwt())).andExpect(status().isNoContent)
 
         mockMvc.perform(get("/api/routes/1").with(testJwt()))
             .andExpect(status().isNotFound)
@@ -160,7 +170,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `POST wall with latitude above 90 returns 400`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":"North Face","latitude":91.0}""")
         )
             .andExpect(status().isBadRequest)
@@ -170,7 +180,7 @@ class WallControllerIT : IntegrationTestBase() {
     @Test
     fun `POST wall with longitude below minus 180 returns 400`() {
         mockMvc.perform(
-            post(baseUrl).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("""{"areaId":$areaId,"name":"North Face","longitude":-181.0}""")
         )
             .andExpect(status().isBadRequest)
