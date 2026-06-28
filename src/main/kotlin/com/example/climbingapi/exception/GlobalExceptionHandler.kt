@@ -12,6 +12,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.multipart.MaxUploadSizeExceededException
+import software.amazon.awssdk.core.exception.SdkException
 import java.time.OffsetDateTime
 
 @RestControllerAdvice
@@ -49,6 +51,18 @@ class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotAllowed(exception: HttpRequestMethodNotSupportedException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", exception.message ?: "Method not allowed", request)
+    }
+
+    @ExceptionHandler(PayloadTooLargeException::class, MaxUploadSizeExceededException::class)
+    fun handlePayloadTooLarge(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        val message = if (exception is PayloadTooLargeException) exception.message ?: "Payload too large"
+        else "Uploaded file exceeds the maximum allowed size."
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", message, request)
+    }
+
+    @ExceptionHandler(SdkException::class)
+    fun handleStorageError(exception: SdkException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        return buildResponse(HttpStatus.BAD_GATEWAY, "STORAGE_ERROR", "Image storage is unavailable.", request)
     }
 
     @ExceptionHandler(DataIntegrityViolationException::class)

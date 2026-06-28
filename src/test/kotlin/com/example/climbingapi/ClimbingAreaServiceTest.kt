@@ -28,7 +28,7 @@ class ClimbingAreaServiceTest {
     lateinit var climbingAreaService: ClimbingAreaService
 
     private val sampleArea = ClimbingArea(1, "Test Crag", "A nice crag", null, null, "Oslo", OffsetDateTime.now())
-    private val sampleWall = Wall(1, 1, "Main Wall", null, null, null, null, OffsetDateTime.now())
+    private val sampleWall = Wall(1, 1, "Main Wall", null, null, null, null, null, OffsetDateTime.now())
 
     @Test
     fun `getById returns area when found`() {

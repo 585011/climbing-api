@@ -2,10 +2,13 @@ package com.example.climbingapi.mapper
 
 import com.example.climbingapi.dto.WallResponse
 import com.example.climbingapi.model.Wall
+import com.example.climbingapi.service.StorageService
 import org.springframework.stereotype.Component
 
 @Component
-class WallMapper {
+class WallMapper(
+    private val storageService: StorageService
+) {
 
     fun toResponse(wall: Wall): WallResponse {
         return WallResponse(
@@ -16,6 +19,7 @@ class WallMapper {
             latitude = wall.latitude,
             longitude = wall.longitude,
             approachInfo = wall.approachInfo,
+            imageUrl = wall.imageKey?.let { storageService.presignGet(it) },
             createdAt = wall.createdAt!!
         )
     }

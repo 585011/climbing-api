@@ -34,6 +34,11 @@ abstract class IntegrationTestBase {
             registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri") { "https://test.auth0.local/" }
             registry.add("auth0.audience") { "test-audience" }
+            // Dummy R2 config so the S3 beans build; WallControllerIT swaps in a fake StorageService.
+            registry.add("storage.r2.endpoint") { "http://localhost:9999" }
+            registry.add("storage.r2.access-key-id") { "test" }
+            registry.add("storage.r2.secret-access-key") { "test" }
+            registry.add("storage.r2.bucket") { "test-bucket" }
         }
     }
 

@@ -1,17 +1,49 @@
 package com.example.climbingapi.integration
 
+import com.example.climbingapi.service.StorageService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
+import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
+@Import(WallControllerIT.FakeStorageConfig::class)
 class WallControllerIT : IntegrationTestBase() {
+
+    /** In-memory fake so the IT exercises the controller + DB without hitting R2. */
+    @TestConfiguration
+    class FakeStorageConfig {
+        @Bean
+        @Primary
+        fun fakeStorageService(): StorageService = object : StorageService {
+            override fun upload(bytes: ByteArray, contentType: String): String {
+                val ext = when (contentType) {
+                    "image/jpeg" -> "jpg"
+                    "image/png" -> "png"
+                    "image/webp" -> "webp"
+                    else -> throw IllegalArgumentException("Unsupported image type: $contentType")
+                }
+                return "walls/${UUID.randomUUID()}.$ext"
+            }
+
+            override fun delete(key: String) { /* no-op */ }
+
+            override fun presignGet(key: String): String = "https://fake-r2.local/$key?signed=true"
+        }
+    }
 
     private val baseUrl = "/api/walls"
     private var areaId = 0
@@ -185,5 +217,93 @@ class WallControllerIT : IntegrationTestBase() {
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    private fun wallPart(name: String = "Photo Wall") =
+        MockMultipartFile("wall", "", MediaType.APPLICATION_JSON_VALUE, """{"areaId":$areaId,"name":"$name"}""".toByteArray())
+
+    private fun imagePart(filename: String = "photo.jpg", type: String = "image/jpeg", bytes: ByteArray = byteArrayOf(1, 2, 3)) =
+        MockMultipartFile("image", filename, type, bytes)
+
+    @Test
+    fun `POST wall multipart with image returns 201 with imageUrl`() {
+        mockMvc.perform(
+            multipart(baseUrl).file(wallPart()).file(imagePart()).with(adminJwt())
+        )
+            .andExpect(status().isCreated)
+            .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/api/walls/")))
+            .andExpect(jsonPath("$.name").value("Photo Wall"))
+            .andExpect(jsonPath("$.imageUrl").isNotEmpty)
+    }
+
+    @Test
+    fun `POST wall multipart without image returns 201 with null imageUrl`() {
+        mockMvc.perform(
+            multipart(baseUrl).file(wallPart("No Photo")).with(adminJwt())
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.name").value("No Photo"))
+            .andExpect(jsonPath("$.imageUrl").doesNotExist())
+    }
+
+    @Test
+    fun `POST wall multipart without admin role returns 403`() {
+        mockMvc.perform(
+            multipart(baseUrl).file(wallPart()).file(imagePart()).with(testJwt())
+        )
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+    }
+
+    @Test
+    fun `PUT wall image returns 200 with imageUrl`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, "$baseUrl/1/image").file(imagePart("photo.png", "image/png")).with(adminJwt())
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.imageUrl").isNotEmpty)
+    }
+
+    @Test
+    fun `PUT wall image with unsupported type returns 400`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, "$baseUrl/1/image").file(imagePart("note.txt", "text/plain")).with(adminJwt())
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `PUT wall image exceeding 5MB returns 413`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, "$baseUrl/1/image")
+                .file(imagePart("big.jpg", "image/jpeg", ByteArray(5 * 1024 * 1024 + 1))).with(adminJwt())
+        )
+            .andExpect(status().isPayloadTooLarge)
+            .andExpect(jsonPath("$.errorCode").value("PAYLOAD_TOO_LARGE"))
+    }
+
+    @Test
+    fun `PUT wall image on unknown wall returns 404`() {
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, "$baseUrl/999/image").file(imagePart()).with(adminJwt())
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `PUT wall image without admin role returns 403`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, "$baseUrl/1/image").file(imagePart()).with(testJwt())
+        )
+            .andExpect(status().isForbidden)
     }
 }

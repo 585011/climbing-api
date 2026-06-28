@@ -11,5 +11,6 @@ data class Wall(
     val latitude: BigDecimal?,
     val longitude: BigDecimal?,
     val approachInfo: String?,
+    val imageKey: String?,
     val createdAt: OffsetDateTime?
 )

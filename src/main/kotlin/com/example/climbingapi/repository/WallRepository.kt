@@ -4,7 +4,6 @@ import com.example.climbingapi.model.Wall
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
-import java.math.BigDecimal
 import java.time.OffsetDateTime
 
 @Repository
@@ -23,6 +22,7 @@ class WallRepository(
             latitude = rs.getBigDecimal("latitude"),
             longitude = rs.getBigDecimal("longitude"),
             approachInfo = rs.getString("approach_info"),
+            imageKey = rs.getString("image_key"),
             createdAt = createdTime
         )
     }
@@ -37,6 +37,7 @@ class WallRepository(
                 latitude,
                 longitude,
                 approach_info,
+                image_key,
                 created_at
             FROM walls
             ORDER BY id
@@ -59,6 +60,7 @@ class WallRepository(
                 latitude,
                 longitude,
                 approach_info,
+                image_key,
                 created_at
             FROM walls
             WHERE id = ?
@@ -71,6 +73,7 @@ class WallRepository(
     }
 
     fun update(id: Int, wall: Wall): Wall? {
+        // image_key is intentionally not touched here — images are managed via PUT /{id}/image.
         val sql = """
             UPDATE walls
             SET area_id = ?,
@@ -87,6 +90,7 @@ class WallRepository(
                       latitude,
                       longitude,
                       approach_info,
+                      image_key,
                       created_at
         """.trimIndent()
         return jdbcTemplate.query(
@@ -102,6 +106,24 @@ class WallRepository(
         ).firstOrNull()
     }
 
+    fun updateImageKey(id: Int, imageKey: String): Wall? {
+        val sql = """
+            UPDATE walls
+            SET image_key = ?
+            WHERE id = ?
+            RETURNING id,
+                      area_id,
+                      name,
+                      description,
+                      latitude,
+                      longitude,
+                      approach_info,
+                      image_key,
+                      created_at
+        """.trimIndent()
+        return jdbcTemplate.query(sql, wallRowMapper, imageKey, id).firstOrNull()
+    }
+
     fun findByAreaId(areaId: Int): List<Wall> {
         val sql = """
             SELECT
@@ -112,6 +134,7 @@ class WallRepository(
                 latitude,
                 longitude,
                 approach_info,
+                image_key,
                 created_at
             FROM walls
             WHERE area_id = ?
@@ -128,9 +151,10 @@ class WallRepository(
                 description,
                 latitude,
                 longitude,
-                approach_info
+                approach_info,
+                image_key
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             RETURNING id,
                       area_id,
                       name,
@@ -138,6 +162,7 @@ class WallRepository(
                       latitude,
                       longitude,
                       approach_info,
+                      image_key,
                       created_at
         """.trimIndent()
 
@@ -149,7 +174,8 @@ class WallRepository(
             wall.description,
             wall.latitude,
             wall.longitude,
-            wall.approachInfo
+            wall.approachInfo,
+            wall.imageKey
         ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }
