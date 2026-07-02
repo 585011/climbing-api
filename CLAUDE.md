@@ -63,6 +63,10 @@ Copy `.env` values as environment variables before running. The app reads the fo
 | `AUTH0_AUDIENCE` | Auth0 dashboard → Applications → APIs → your API → API Audience |
 | `ALLOW_ORIGINS` | Production frontend URL for CORS (optional; localhost:5173 and localhost:8000 are always allowed) |
 | `SPRING_PROFILES_ACTIVE` | Set to `prod` in production to suppress JDBC debug logging (`application-prod.yaml`) |
+| `R2_ENDPOINT` | Cloudflare R2 S3 API endpoint (`https://<ACCOUNT_ID>.r2.cloudflarestorage.com`) |
+| `R2_ACCESS_KEY_ID` | R2 API token access key (Cloudflare dashboard → R2 → Manage API Tokens) |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `R2_BUCKET` | R2 bucket name for wall images |
 
 ```bash
 export $(grep -v '^#' .env | xargs)
@@ -93,9 +97,10 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/climbing-areas` | List all areas; supports `?page=0&size=20` (max 100) |
 | GET | `/api/walls` | List all walls; supports `?page=0&size=20` (max 100) |
 | GET | `/api/walls/{id}` | 404 if not found |
-| POST | `/api/walls` | Returns 201; `areaId` required |
+| POST | `/api/walls` | Returns 201; `areaId` required. Accepts `application/json`, or `multipart/form-data` with a JSON part `wall` + optional `image` file (admin only) |
 | GET | `/api/walls/{wallId}/routes` | 404 if wall not found |
-| PUT | `/api/walls/{id}` | Full replace; 404 if not found |
+| PUT | `/api/walls/{id}` | Full replace; 404 if not found. Does not touch `image_key` |
+| PUT | `/api/walls/{id}/image` | Admin only; `multipart/form-data` with an `image` file; uploads to R2, replaces old image; 404 if wall not found |
 | GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100) |
 | GET | `/api/routes/{id}` | 404 if not found |
 | POST | `/api/routes` | Returns 201; validates wall exists |
@@ -148,6 +153,17 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V1__create_tables.sql` | Full schema (all 5 tables) |
 | `V2__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
 | `V3__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
+| `V4__widen_description_columns.sql` | Widen `walls.description` and `walls.approach_info` to `TEXT` |
+| `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` (R2 object key for the wall image) |
+
+## Wall images
+
+Wall photos are stored in **Cloudflare R2** (S3-compatible), not in Postgres. The wall row holds only
+the R2 **object key** (`walls.image_key`); read responses expose a short-lived **presigned GET URL** as
+`WallResponse.imageUrl` (built in `WallMapper` via `StorageService.presignGet`). Uploads (multipart `POST
+/api/walls` and `PUT /api/walls/{id}/image`) are admin-only, accept JPEG/PNG/WebP up to 5 MB, and replace
+the previous object best-effort. `StorageService` is the storage port; `R2StorageService` is the AWS SDK v2
+implementation, wired in `config/StorageConfig.kt` from `config/R2Properties.kt` (`storage.r2.*`).
 
 ## Related projects
 

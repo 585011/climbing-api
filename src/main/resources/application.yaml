@@ -17,6 +17,11 @@ spring:
   flyway:
     enabled: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   security:
     oauth2:
       resourceserver:
@@ -25,6 +30,14 @@ spring:
 
 auth0:
   audience: ${AUTH0_AUDIENCE}
+
+storage:
+  r2:
+    endpoint: ${R2_ENDPOINT}
+    access-key-id: ${R2_ACCESS_KEY_ID}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY}
+    bucket: ${R2_BUCKET}
+    presign-duration-minutes: 15
 
 logging:
   level:

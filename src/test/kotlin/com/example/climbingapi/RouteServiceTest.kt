@@ -27,7 +27,7 @@ class RouteServiceTest {
     @InjectMocks
     lateinit var routeService: RouteService
 
-    private val sampleWall = Wall(1, 1, "Main Wall", null, null, null, null, OffsetDateTime.now())
+    private val sampleWall = Wall(1, 1, "Main Wall", null, null, null, null, null, OffsetDateTime.now())
     private val sampleRoute = Route(1, 1, "Test Route", "6a", 20, "sport", 8, null, null, null, OffsetDateTime.now())
 
     @Test
