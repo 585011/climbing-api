@@ -278,12 +278,12 @@ class WallControllerIT : IntegrationTestBase() {
     }
 
     @Test
-    fun `PUT wall image exceeding 5MB returns 413`() {
+    fun `PUT wall image exceeding 20MB returns 413`() {
         postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
 
         mockMvc.perform(
             multipart(HttpMethod.PUT, "$baseUrl/1/image")
-                .file(imagePart("big.jpg", "image/jpeg", ByteArray(5 * 1024 * 1024 + 1))).with(adminJwt())
+                .file(imagePart("big.jpg", "image/jpeg", ByteArray(20 * 1024 * 1024 + 1))).with(adminJwt())
         )
             .andExpect(status().isPayloadTooLarge)
             .andExpect(jsonPath("$.errorCode").value("PAYLOAD_TOO_LARGE"))

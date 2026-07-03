@@ -102,13 +102,13 @@ class WallService(
             throw IllegalArgumentException("Unsupported image type. Allowed: image/jpeg, image/png, image/webp.")
         }
         if (image.size > MAX_IMAGE_BYTES) {
-            throw PayloadTooLargeException("Image exceeds the maximum size of 5 MB.")
+            throw PayloadTooLargeException("Image exceeds the maximum size of 20 MB.")
         }
         return storageService.upload(image.bytes, contentType)
     }
 
     companion object {
         private val ALLOWED_IMAGE_TYPES = setOf("image/jpeg", "image/png", "image/webp")
-        private const val MAX_IMAGE_BYTES = 5L * 1024 * 1024
+        private const val MAX_IMAGE_BYTES = 20L * 1024 * 1024
     }
 }
