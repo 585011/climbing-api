@@ -112,7 +112,7 @@ class WallServiceTest {
     fun `create with oversized image throws PayloadTooLargeException`() {
         val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
             latitude = null, longitude = null, approachInfo = null)
-        val big = MockMultipartFile("image", "big.jpg", "image/jpeg", ByteArray(5 * 1024 * 1024 + 1))
+        val big = MockMultipartFile("image", "big.jpg", "image/jpeg", ByteArray(20 * 1024 * 1024 + 1))
         assertThrows(PayloadTooLargeException::class.java) { wallService.create(request, big) }
     }
 
