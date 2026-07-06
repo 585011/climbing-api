@@ -42,6 +42,8 @@ class WallControllerIT : IntegrationTestBase() {
             override fun delete(key: String) { /* no-op */ }
 
             override fun presignGet(key: String): String = "https://fake-r2.local/$key?signed=true"
+
+            override fun get(key: String): ByteArray = ByteArray(0)
         }
     }
 
@@ -222,7 +224,14 @@ class WallControllerIT : IntegrationTestBase() {
     private fun wallPart(name: String = "Photo Wall") =
         MockMultipartFile("wall", "", MediaType.APPLICATION_JSON_VALUE, """{"areaId":$areaId,"name":"$name"}""".toByteArray())
 
-    private fun imagePart(filename: String = "photo.jpg", type: String = "image/jpeg", bytes: ByteArray = byteArrayOf(1, 2, 3)) =
+    private fun realImageBytes(): ByteArray {
+        val img = java.awt.image.BufferedImage(120, 80, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val out = java.io.ByteArrayOutputStream()
+        javax.imageio.ImageIO.write(img, "png", out)
+        return out.toByteArray()
+    }
+
+    private fun imagePart(filename: String = "photo.jpg", type: String = "image/jpeg", bytes: ByteArray = realImageBytes()) =
         MockMultipartFile("image", filename, type, bytes)
 
     @Test
@@ -305,5 +314,21 @@ class WallControllerIT : IntegrationTestBase() {
             multipart(HttpMethod.PUT, "$baseUrl/1/image").file(imagePart()).with(testJwt())
         )
             .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `backfill requires admin`() {
+        mockMvc.perform(post("$baseUrl/backfill-images"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `backfill as admin returns processed and failed counts`() {
+        mockMvc.perform(
+            post("$baseUrl/backfill-images").with(adminJwt())
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.processed").exists())
+            .andExpect(jsonPath("$.failed").exists())
     }
 }

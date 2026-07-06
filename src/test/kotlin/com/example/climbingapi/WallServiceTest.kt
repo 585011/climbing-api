@@ -7,6 +7,8 @@ import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.Wall
 import com.example.climbingapi.repository.WallRepository
+import com.example.climbingapi.service.ImageVariantService
+import com.example.climbingapi.service.ImageVariants
 import com.example.climbingapi.service.RouteService
 import com.example.climbingapi.service.StorageService
 import com.example.climbingapi.service.WallService
@@ -14,13 +16,19 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.InjectMocks
 import org.mockito.Mock
+import org.mockito.Mockito
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.mock.web.MockMultipartFile
 import java.time.OffsetDateTime
+
+// Mockito's ArgumentMatchers.any() returns null, which Kotlin's non-null parameter
+// types reject at the call site (NPE). This wrapper works around that interop gap.
+private fun <T> any(): T = Mockito.any<T>()
 
 @ExtendWith(MockitoExtension::class)
 class WallServiceTest {
@@ -28,6 +36,7 @@ class WallServiceTest {
     @Mock lateinit var wallRepository: WallRepository
     @Mock lateinit var routeService: RouteService
     @Mock lateinit var storageService: StorageService
+    @Mock lateinit var imageVariantService: ImageVariantService
 
     @InjectMocks
     lateinit var wallService: WallService
@@ -35,6 +44,7 @@ class WallServiceTest {
     private val sampleWall = Wall(1, 1, "Main Wall", null, null, null, null, null, OffsetDateTime.now())
     private val sampleRoute = Route(1, 1, "Test Route", "6a", 20, "sport", 8, null, null, null, OffsetDateTime.now())
     private val jpeg = MockMultipartFile("image", "photo.jpg", "image/jpeg", byteArrayOf(1, 2, 3))
+    private val variants = ImageVariants(byteArrayOf(9), byteArrayOf(8), "image/jpeg")
 
     @Test
     fun `getById returns wall when found`() {
@@ -81,9 +91,9 @@ class WallServiceTest {
         val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
             latitude = null, longitude = null, approachInfo = null)
         val expected = sampleWall.copy(name = "Photo Wall", imageKey = "walls/abc.jpg")
-        `when`(storageService.upload(jpeg.bytes, "image/jpeg")).thenReturn("walls/abc.jpg")
-        `when`(wallRepository.create(Wall(null, 1, "Photo Wall", null, null, null, null, "walls/abc.jpg", null)))
-            .thenReturn(expected)
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/abc.jpg", "walls/opt", "walls/thumb")
+        `when`(wallRepository.create(any())).thenReturn(expected)
 
         assertEquals(expected, wallService.create(request, jpeg))
     }
@@ -92,12 +102,26 @@ class WallServiceTest {
     fun `create with image deletes uploaded object when insert fails`() {
         val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
             latitude = null, longitude = null, approachInfo = null)
-        `when`(storageService.upload(jpeg.bytes, "image/jpeg")).thenReturn("walls/abc.jpg")
-        `when`(wallRepository.create(Wall(null, 1, "Photo Wall", null, null, null, null, "walls/abc.jpg", null)))
-            .thenThrow(RuntimeException("insert failed"))
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/abc.jpg", "walls/opt", "walls/thumb")
+        `when`(wallRepository.create(any())).thenThrow(RuntimeException("insert failed"))
 
         assertThrows(RuntimeException::class.java) { wallService.create(request, jpeg) }
         verify(storageService).delete("walls/abc.jpg")
+        verify(storageService).delete("walls/opt")
+        verify(storageService).delete("walls/thumb")
+    }
+
+    @Test
+    fun `create with image deletes already-uploaded object when a later upload fails`() {
+        val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
+            latitude = null, longitude = null, approachInfo = null)
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any()))
+            .thenReturn("walls/orig").thenThrow(RuntimeException("r2 down"))
+
+        assertThrows(RuntimeException::class.java) { wallService.create(request, jpeg) }
+        verify(storageService).delete("walls/orig")
     }
 
     @Test
@@ -120,8 +144,10 @@ class WallServiceTest {
     fun `replaceImage uploads new key, updates wall, and deletes old object`() {
         val png = MockMultipartFile("image", "photo.png", "image/png", byteArrayOf(4, 5, 6))
         `when`(wallRepository.getById(1)).thenReturn(sampleWall.copy(imageKey = "old-key"))
-        `when`(storageService.upload(png.bytes, "image/png")).thenReturn("new-key")
-        `when`(wallRepository.updateImageKey(1, "new-key")).thenReturn(sampleWall.copy(imageKey = "new-key"))
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("new-key", "new-opt", "new-thumb")
+        `when`(wallRepository.updateImageKeys(1, "new-key", "new-opt", "new-thumb"))
+            .thenReturn(sampleWall.copy(imageKey = "new-key"))
 
         val result = wallService.replaceImage(1, png)
 
@@ -133,6 +159,77 @@ class WallServiceTest {
     fun `replaceImage on missing wall throws NotFoundException`() {
         `when`(wallRepository.getById(99)).thenReturn(null)
         assertThrows(NotFoundException::class.java) { wallService.replaceImage(99, jpeg) }
+    }
+
+    @Test
+    fun `create stores original, optimized, and thumbnail keys`() {
+        val request = CreateWallRequest(areaId = 1, name = "W", description = null,
+            latitude = null, longitude = null, approachInfo = null)
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/orig", "walls/opt", "walls/thumb")
+        var captured: Wall? = null
+        `when`(wallRepository.create(any())).thenAnswer {
+            captured = it.getArgument(0)
+            captured
+        }
+
+        wallService.create(request, jpeg)
+
+        assertEquals("walls/orig", captured?.imageKey)
+        assertEquals("walls/opt", captured?.optimizedKey)
+        assertEquals("walls/thumb", captured?.thumbnailKey)
+    }
+
+    @Test
+    fun `replaceImage deletes the three old keys after a successful swap`() {
+        val old = Wall(1, 1, "W", null, null, null, null, "walls/oldO", OffsetDateTime.now(),
+            "walls/oldOpt", "walls/oldThumb")
+        `when`(wallRepository.getById(1)).thenReturn(old)
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/newO", "walls/newOpt", "walls/newThumb")
+        `when`(wallRepository.updateImageKeys(1, "walls/newO", "walls/newOpt", "walls/newThumb"))
+            .thenReturn(old.copy(imageKey = "walls/newO"))
+
+        wallService.replaceImage(1, jpeg)
+
+        verify(storageService).delete("walls/oldO")
+        verify(storageService).delete("walls/oldOpt")
+        verify(storageService).delete("walls/oldThumb")
+    }
+
+    @Test
+    fun `backfillImages processes only walls missing variants and is idempotent on a second run`() {
+        val needs = Wall(5, 1, "W", null, null, null, null, "walls/orig.png", OffsetDateTime.now())
+        `when`(wallRepository.findWallsNeedingBackfill()).thenReturn(listOf(needs), emptyList())
+        `when`(storageService.get("walls/orig.png")).thenReturn(byteArrayOf(1))
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/opt", "walls/thumb")
+        `when`(wallRepository.updateImageKeys(5, "walls/orig.png", "walls/opt", "walls/thumb"))
+            .thenReturn(needs)
+
+        val first = wallService.backfillImages()
+        val second = wallService.backfillImages()
+
+        assertEquals(1, first.processed)
+        assertEquals(0, first.failed)
+        assertEquals(0, second.processed)
+    }
+
+    @Test
+    fun `backfillImages counts a per-wall failure without aborting`() {
+        val a = Wall(6, 1, "A", null, null, null, null, "walls/a.png", OffsetDateTime.now())
+        val b = Wall(7, 1, "B", null, null, null, null, "walls/b.png", OffsetDateTime.now())
+        `when`(wallRepository.findWallsNeedingBackfill()).thenReturn(listOf(a, b))
+        `when`(storageService.get("walls/a.png")).thenThrow(RuntimeException("boom"))
+        `when`(storageService.get("walls/b.png")).thenReturn(byteArrayOf(1))
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any())).thenReturn("walls/opt", "walls/thumb")
+        `when`(wallRepository.updateImageKeys(eq(7), any(), any(), any())).thenReturn(b)
+
+        val result = wallService.backfillImages()
+
+        assertEquals(1, result.processed)
+        assertEquals(1, result.failed)
     }
 
     @Test

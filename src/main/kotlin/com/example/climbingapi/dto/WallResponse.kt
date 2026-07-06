@@ -12,5 +12,6 @@ data class WallResponse(
     val longitude: BigDecimal?,
     val approachInfo: String?,
     val imageUrl: String?,
+    val thumbnailUrl: String?,
     val createdAt: OffsetDateTime
 )

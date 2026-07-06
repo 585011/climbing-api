@@ -3,11 +3,13 @@ package com.example.climbingapi.service
 import com.example.climbingapi.config.R2Properties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
@@ -50,6 +52,13 @@ class R2StorageService(
             .getObjectRequest(GetObjectRequest.builder().bucket(props.bucket).key(key).build())
             .build()
         return s3Presigner.presignGetObject(presignRequest).url().toString()
+    }
+
+    override fun get(key: String): ByteArray {
+        val response: ResponseBytes<GetObjectResponse> = s3Client.getObjectAsBytes(
+            GetObjectRequest.builder().bucket(props.bucket).key(key).build()
+        )
+        return response.asByteArray()
     }
 
     private fun extensionFor(contentType: String): String = when (contentType) {
