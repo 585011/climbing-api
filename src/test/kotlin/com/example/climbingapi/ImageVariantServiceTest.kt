@@ -76,4 +76,11 @@ class ImageVariantServiceTest {
             service.generate(byteArrayOf(1, 2, 3, 4), "image/png")
         }
     }
+
+    @Test
+    fun `exceedsPixelLimit flags images over the cap and passes normal ones`() {
+        // Uses plain ints — does NOT allocate a giant image.
+        org.junit.jupiter.api.Assertions.assertTrue(service.exceedsPixelLimit(10_000, 6_000))   // 60 MP > cap
+        org.junit.jupiter.api.Assertions.assertFalse(service.exceedsPixelLimit(4_000, 3_000))   // 12 MP < cap
+    }
 }
