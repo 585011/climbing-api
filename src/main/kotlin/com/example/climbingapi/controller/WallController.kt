@@ -107,6 +107,10 @@ class WallController(
     fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateWallRequest): WallResponse =
         wallMapper.toResponse(wallService.update(id, request))
 
+    @Operation(summary = "Regenerate image variants for walls missing them (admin only)")
+    @PostMapping("/backfill-images")
+    fun backfillImages(): WallService.BackfillResult = wallService.backfillImages()
+
     @Operation(summary = "Delete a wall")
     @ApiResponse(responseCode = "204", description = "Wall deleted")
     @ApiResponse(responseCode = "404", description = "Wall not found",

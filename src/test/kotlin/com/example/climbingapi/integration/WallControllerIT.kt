@@ -308,4 +308,20 @@ class WallControllerIT : IntegrationTestBase() {
         )
             .andExpect(status().isForbidden)
     }
+
+    @Test
+    fun `backfill requires admin`() {
+        mockMvc.perform(post("$baseUrl/backfill-images"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `backfill as admin returns processed and failed counts`() {
+        mockMvc.perform(
+            post("$baseUrl/backfill-images").with(adminJwt())
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.processed").exists())
+            .andExpect(jsonPath("$.failed").exists())
+    }
 }
