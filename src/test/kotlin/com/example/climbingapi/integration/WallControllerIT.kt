@@ -42,6 +42,8 @@ class WallControllerIT : IntegrationTestBase() {
             override fun delete(key: String) { /* no-op */ }
 
             override fun presignGet(key: String): String = "https://fake-r2.local/$key?signed=true"
+
+            override fun get(key: String): ByteArray = ByteArray(0)
         }
     }
 

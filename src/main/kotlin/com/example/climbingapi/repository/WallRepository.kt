@@ -23,7 +23,9 @@ class WallRepository(
             longitude = rs.getBigDecimal("longitude"),
             approachInfo = rs.getString("approach_info"),
             imageKey = rs.getString("image_key"),
-            createdAt = createdTime
+            createdAt = createdTime,
+            optimizedKey = rs.getString("optimized_key"),
+            thumbnailKey = rs.getString("thumbnail_key")
         )
     }
 
@@ -38,7 +40,9 @@ class WallRepository(
                 longitude,
                 approach_info,
                 image_key,
-                created_at
+                created_at,
+                optimized_key,
+                thumbnail_key
             FROM walls
             ORDER BY id
             LIMIT ? OFFSET ?
@@ -61,7 +65,9 @@ class WallRepository(
                 longitude,
                 approach_info,
                 image_key,
-                created_at
+                created_at,
+                optimized_key,
+                thumbnail_key
             FROM walls
             WHERE id = ?
         """.trimIndent()
@@ -91,7 +97,9 @@ class WallRepository(
                       longitude,
                       approach_info,
                       image_key,
-                      created_at
+                      created_at,
+                      optimized_key,
+                      thumbnail_key
         """.trimIndent()
         return jdbcTemplate.query(
             sql,
@@ -119,9 +127,22 @@ class WallRepository(
                       longitude,
                       approach_info,
                       image_key,
-                      created_at
+                      created_at,
+                      optimized_key,
+                      thumbnail_key
         """.trimIndent()
         return jdbcTemplate.query(sql, wallRowMapper, imageKey, id).firstOrNull()
+    }
+
+    fun updateImageKeys(id: Int, imageKey: String, optimizedKey: String, thumbnailKey: String): Wall? {
+        val sql = """
+            UPDATE walls
+            SET image_key = ?, optimized_key = ?, thumbnail_key = ?
+            WHERE id = ?
+            RETURNING id, area_id, name, description, latitude, longitude,
+                      approach_info, image_key, created_at, optimized_key, thumbnail_key
+        """.trimIndent()
+        return jdbcTemplate.query(sql, wallRowMapper, imageKey, optimizedKey, thumbnailKey, id).firstOrNull()
     }
 
     fun findByAreaId(areaId: Int): List<Wall> {
@@ -135,7 +156,9 @@ class WallRepository(
                 longitude,
                 approach_info,
                 image_key,
-                created_at
+                created_at,
+                optimized_key,
+                thumbnail_key
             FROM walls
             WHERE area_id = ?
             ORDER BY id
@@ -146,36 +169,31 @@ class WallRepository(
     fun create(wall: Wall): Wall {
         val sql = """
             INSERT INTO walls (
-                area_id,
-                name,
-                description,
-                latitude,
-                longitude,
-                approach_info,
-                image_key
+                area_id, name, description, latitude, longitude,
+                approach_info, image_key, optimized_key, thumbnail_key
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            RETURNING id,
-                      area_id,
-                      name,
-                      description,
-                      latitude,
-                      longitude,
-                      approach_info,
-                      image_key,
-                      created_at
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id, area_id, name, description, latitude, longitude,
+                      approach_info, image_key, created_at, optimized_key, thumbnail_key
         """.trimIndent()
 
         return jdbcTemplate.query(
-            sql,
-            wallRowMapper,
-            wall.areaId,
-            wall.name,
-            wall.description,
-            wall.latitude,
-            wall.longitude,
-            wall.approachInfo,
-            wall.imageKey
+            sql, wallRowMapper,
+            wall.areaId, wall.name, wall.description, wall.latitude, wall.longitude,
+            wall.approachInfo, wall.imageKey, wall.optimizedKey, wall.thumbnailKey
         ).firstOrNull() ?: error("INSERT RETURNING returned no row")
+    }
+
+    fun findWallsNeedingBackfill(): List<Wall> {
+        val sql = """
+            SELECT
+                id, area_id, name, description, latitude, longitude,
+                approach_info, image_key, created_at, optimized_key, thumbnail_key
+            FROM walls
+            WHERE image_key IS NOT NULL
+              AND (optimized_key IS NULL OR thumbnail_key IS NULL)
+            ORDER BY id
+        """.trimIndent()
+        return jdbcTemplate.query(sql, wallRowMapper)
     }
 }
