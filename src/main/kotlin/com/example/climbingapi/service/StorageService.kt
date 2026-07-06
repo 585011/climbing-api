@@ -15,4 +15,7 @@ interface StorageService {
 
     /** Returns a short-lived presigned GET URL for the object key. */
     fun presignGet(key: String): String
+
+    /** Downloads the raw bytes for an object key (used to regenerate variants). */
+    fun get(key: String): ByteArray
 }
