@@ -19,7 +19,8 @@ class WallMapper(
             latitude = wall.latitude,
             longitude = wall.longitude,
             approachInfo = wall.approachInfo,
-            imageUrl = wall.imageKey?.let { storageService.presignGet(it) },
+            imageUrl = (wall.optimizedKey ?: wall.imageKey)?.let { storageService.presignGet(it) },
+            thumbnailUrl = (wall.thumbnailKey ?: wall.imageKey)?.let { storageService.presignGet(it) },
             createdAt = wall.createdAt!!
         )
     }
