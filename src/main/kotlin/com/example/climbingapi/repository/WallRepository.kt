@@ -114,26 +114,6 @@ class WallRepository(
         ).firstOrNull()
     }
 
-    fun updateImageKey(id: Int, imageKey: String): Wall? {
-        val sql = """
-            UPDATE walls
-            SET image_key = ?
-            WHERE id = ?
-            RETURNING id,
-                      area_id,
-                      name,
-                      description,
-                      latitude,
-                      longitude,
-                      approach_info,
-                      image_key,
-                      created_at,
-                      optimized_key,
-                      thumbnail_key
-        """.trimIndent()
-        return jdbcTemplate.query(sql, wallRowMapper, imageKey, id).firstOrNull()
-    }
-
     fun updateImageKeys(id: Int, imageKey: String, optimizedKey: String, thumbnailKey: String): Wall? {
         val sql = """
             UPDATE walls
