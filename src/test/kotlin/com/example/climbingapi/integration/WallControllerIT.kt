@@ -224,7 +224,14 @@ class WallControllerIT : IntegrationTestBase() {
     private fun wallPart(name: String = "Photo Wall") =
         MockMultipartFile("wall", "", MediaType.APPLICATION_JSON_VALUE, """{"areaId":$areaId,"name":"$name"}""".toByteArray())
 
-    private fun imagePart(filename: String = "photo.jpg", type: String = "image/jpeg", bytes: ByteArray = byteArrayOf(1, 2, 3)) =
+    private fun realImageBytes(): ByteArray {
+        val img = java.awt.image.BufferedImage(120, 80, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val out = java.io.ByteArrayOutputStream()
+        javax.imageio.ImageIO.write(img, "png", out)
+        return out.toByteArray()
+    }
+
+    private fun imagePart(filename: String = "photo.jpg", type: String = "image/jpeg", bytes: ByteArray = realImageBytes()) =
         MockMultipartFile("image", filename, type, bytes)
 
     @Test
