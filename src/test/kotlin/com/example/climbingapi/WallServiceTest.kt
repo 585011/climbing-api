@@ -113,6 +113,18 @@ class WallServiceTest {
     }
 
     @Test
+    fun `create with image deletes already-uploaded object when a later upload fails`() {
+        val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
+            latitude = null, longitude = null, approachInfo = null)
+        `when`(imageVariantService.generate(any(), any())).thenReturn(variants)
+        `when`(storageService.upload(any(), any()))
+            .thenReturn("walls/orig").thenThrow(RuntimeException("r2 down"))
+
+        assertThrows(RuntimeException::class.java) { wallService.create(request, jpeg) }
+        verify(storageService).delete("walls/orig")
+    }
+
+    @Test
     fun `create with unsupported image type throws IllegalArgumentException`() {
         val request = CreateWallRequest(areaId = 1, name = "Photo Wall", description = null,
             latitude = null, longitude = null, approachInfo = null)

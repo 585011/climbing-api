@@ -104,14 +104,16 @@ class WallService(
         var failed = 0
         for (wall in wallRepository.findWallsNeedingBackfill()) {
             val originalKey = wall.imageKey ?: continue
+            var optimizedKey: String? = null
             try {
                 val bytes = storageService.get(originalKey)
                 val variants = imageVariantService.generate(bytes, contentTypeForKey(originalKey))
-                val optimizedKey = storageService.upload(variants.optimized, variants.contentType)
+                optimizedKey = storageService.upload(variants.optimized, variants.contentType)
                 val thumbnailKey = storageService.upload(variants.thumbnail, variants.contentType)
                 wallRepository.updateImageKeys(wall.id!!, originalKey, optimizedKey, thumbnailKey)
                 processed++
             } catch (e: Exception) {
+                optimizedKey?.let { storageService.delete(it) }
                 logger.warn("Backfill failed for wall {}: {}", wall.id, e.message)
                 failed++
             }
@@ -139,10 +141,16 @@ class WallService(
             throw PayloadTooLargeException("Image exceeds the maximum size of 20 MB.")
         }
         val variants = imageVariantService.generate(image.bytes, contentType)
-        val originalKey = storageService.upload(image.bytes, contentType)
-        val optimizedKey = storageService.upload(variants.optimized, variants.contentType)
-        val thumbnailKey = storageService.upload(variants.thumbnail, variants.contentType)
-        return StoredImage(originalKey, optimizedKey, thumbnailKey)
+        val uploaded = mutableListOf<String>()
+        try {
+            val originalKey = storageService.upload(image.bytes, contentType).also { uploaded += it }
+            val optimizedKey = storageService.upload(variants.optimized, variants.contentType).also { uploaded += it }
+            val thumbnailKey = storageService.upload(variants.thumbnail, variants.contentType).also { uploaded += it }
+            return StoredImage(originalKey, optimizedKey, thumbnailKey)
+        } catch (e: Exception) {
+            uploaded.forEach { storageService.delete(it) }
+            throw e
+        }
     }
 
     private fun deleteAll(s: StoredImage) {

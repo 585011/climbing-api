@@ -22,31 +22,41 @@ data class ImageVariants(
 class ImageVariantService {
 
     fun generate(bytes: ByteArray, contentType: String): ImageVariants {
-        val source = try {
-            ImageIO.read(ByteArrayInputStream(bytes))
-        } catch (_: Exception) {
-            null
-        }
+        ImageIO.createImageInputStream(ByteArrayInputStream(bytes)).use { iis ->
+            val reader = if (iis == null) null else ImageIO.getImageReaders(iis).let { if (it.hasNext()) it.next() else null }
 
-        // ImageIO cannot decode WebP (and returns null for any unreadable input).
-        // WebP uploads are already small, so fall back to the original bytes for
-        // both variants rather than pulling in a native decoder.
-        if (source == null) {
-            if (contentType == "image/webp") {
-                return ImageVariants(optimized = bytes, thumbnail = bytes, contentType = contentType)
+            // ImageIO cannot decode WebP (and has no reader for any unreadable input).
+            // WebP uploads are already small, so fall back to the original bytes for
+            // both variants rather than pulling in a native decoder.
+            if (reader == null) {
+                if (contentType == "image/webp") {
+                    return ImageVariants(optimized = bytes, thumbnail = bytes, contentType = contentType)
+                }
+                throw IllegalArgumentException("Could not decode image for processing.")
             }
-            throw IllegalArgumentException("Could not decode image for processing.")
-        }
 
-        if (exceedsPixelLimit(source.width, source.height)) {
-            throw IllegalArgumentException("Image dimensions too large to process.")
-        }
+            try {
+                reader.input = iis
+                val source = try {
+                    if (exceedsPixelLimit(reader.getWidth(0), reader.getHeight(0))) {
+                        throw IllegalArgumentException("Image dimensions too large to process.")
+                    }
+                    reader.read(0)
+                } catch (e: IllegalArgumentException) {
+                    throw e
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Could not decode image for processing.")
+                }
 
-        return ImageVariants(
-            optimized = resizeToJpeg(source, OPTIMIZED_MAX_WIDTH, OPTIMIZED_QUALITY),
-            thumbnail = resizeToJpeg(source, THUMBNAIL_MAX_WIDTH, THUMBNAIL_QUALITY),
-            contentType = "image/jpeg"
-        )
+                return ImageVariants(
+                    optimized = resizeToJpeg(source, OPTIMIZED_MAX_WIDTH, OPTIMIZED_QUALITY),
+                    thumbnail = resizeToJpeg(source, THUMBNAIL_MAX_WIDTH, THUMBNAIL_QUALITY),
+                    contentType = "image/jpeg"
+                )
+            } finally {
+                reader.dispose()
+            }
+        }
     }
 
     private fun resizeToJpeg(source: BufferedImage, maxWidth: Int, quality: Double): ByteArray {
