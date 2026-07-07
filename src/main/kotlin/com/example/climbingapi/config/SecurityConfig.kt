@@ -52,6 +52,7 @@ class SecurityConfig(
                 headers.xssProtection { it.disable() }
             }
             .authorizeHttpRequests {
+                it.requestMatchers(HttpMethod.GET, "/health").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")
                 it.requestMatchers(HttpMethod.PUT, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")
                 it.requestMatchers(HttpMethod.DELETE, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")
