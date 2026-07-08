@@ -7,12 +7,14 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.ClimbingArea
 import com.example.climbingapi.model.Wall
 import com.example.climbingapi.repository.ClimbingAreaRepository
+import com.example.climbingapi.repository.RouteRepository
 import org.springframework.stereotype.Service
 
 @Service
 class ClimbingAreaService(
     private val climbingAreaRepository: ClimbingAreaRepository,
-    private val wallService: WallService
+    private val wallService: WallService,
+    private val routeRepository: RouteRepository
 ) {
 
     fun getAll(page: Int, size: Int): PagedResponse<ClimbingArea> {
@@ -25,6 +27,10 @@ class ClimbingAreaService(
     fun getById(id: Int): ClimbingArea {
         return climbingAreaRepository.getById(id)
             ?: throw NotFoundException("Climbing area not found: $id")
+    }
+
+    fun getRouteCounts(areaIds: List<Int>): Map<Int, Int> {
+        return routeRepository.countByAreaIds(areaIds)
     }
 
     fun getWalls(climbingAreaId: Int): List<Wall> {

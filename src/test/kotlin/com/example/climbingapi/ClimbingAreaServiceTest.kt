@@ -6,6 +6,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.ClimbingArea
 import com.example.climbingapi.model.Wall
 import com.example.climbingapi.repository.ClimbingAreaRepository
+import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.service.ClimbingAreaService
 import com.example.climbingapi.service.WallService
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,6 +24,7 @@ class ClimbingAreaServiceTest {
 
     @Mock lateinit var climbingAreaRepository: ClimbingAreaRepository
     @Mock lateinit var wallService: WallService
+    @Mock lateinit var routeRepository: RouteRepository
 
     @InjectMocks
     lateinit var climbingAreaService: ClimbingAreaService
@@ -88,6 +90,12 @@ class ClimbingAreaServiceTest {
     fun `delete throws NotFoundException when area not found`() {
         `when`(climbingAreaRepository.deleteById(99)).thenReturn(false)
         assertThrows(NotFoundException::class.java) { climbingAreaService.delete(99) }
+    }
+
+    @Test
+    fun `getRouteCounts delegates to routeRepository`() {
+        `when`(routeRepository.countByAreaIds(listOf(1, 2))).thenReturn(mapOf(1 to 5, 2 to 0))
+        assertEquals(mapOf(1 to 5, 2 to 0), climbingAreaService.getRouteCounts(listOf(1, 2)))
     }
 
     @Test

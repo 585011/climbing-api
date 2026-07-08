@@ -10,5 +10,6 @@ data class ClimbingAreaResponse(
     val latitude: BigDecimal?,
     val longitude: BigDecimal?,
     val region: String?,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val routeCount: Int
 )

@@ -72,6 +72,23 @@ class RouteRepository(
         return jdbcTemplate.query(sql, routeRowMapper, id).firstOrNull()
     }
 
+    fun countByAreaIds(areaIds: List<Int>): Map<Int, Int> {
+        if (areaIds.isEmpty()) return emptyMap()
+        val placeholders = areaIds.joinToString(", ") { "?" }
+        val sql = """
+            SELECT w.area_id, COUNT(*) AS route_count
+            FROM routes r
+            JOIN walls w ON w.id = r.wall_id
+            WHERE w.area_id IN ($placeholders)
+            GROUP BY w.area_id
+        """.trimIndent()
+        return jdbcTemplate.query(
+            sql,
+            { rs, _ -> rs.getInt("area_id") to rs.getInt("route_count") },
+            *areaIds.toTypedArray()
+        ).toMap()
+    }
+
     fun findByWallId(wallId: Int): List<Route> {
         val sql = """
             SELECT id,

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 @Component
 class ClimbingAreaMapper {
 
-    fun toResponse(area: ClimbingArea): ClimbingAreaResponse {
+    fun toResponse(area: ClimbingArea, routeCount: Int): ClimbingAreaResponse {
         return ClimbingAreaResponse(
             id = area.id!!,
             name = area.name!!,
@@ -15,7 +15,8 @@ class ClimbingAreaMapper {
             latitude = area.latitude,
             longitude = area.longitude,
             region = area.region,
-            createdAt = area.createdAt!!
+            createdAt = area.createdAt!!,
+            routeCount = routeCount
         )
     }
 }

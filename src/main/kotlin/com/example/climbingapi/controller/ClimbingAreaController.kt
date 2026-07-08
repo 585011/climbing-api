@@ -49,7 +49,11 @@ class ClimbingAreaController(
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int
     ): PagedResponse<ClimbingAreaResponse> {
         val paged = climbingAreaService.getAll(page, size)
-        return PagedResponse(paged.data.map { climbingAreaMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
+        val routeCounts = climbingAreaService.getRouteCounts(paged.data.mapNotNull { it.id })
+        return PagedResponse(
+            paged.data.map { climbingAreaMapper.toResponse(it, routeCounts[it.id] ?: 0) },
+            paged.page, paged.pageSize, paged.total
+        )
     }
 
     @Operation(summary = "Get a climbing area by ID")
@@ -57,7 +61,7 @@ class ClimbingAreaController(
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
     fun getById(@PathVariable id: Int): ClimbingAreaResponse =
-        climbingAreaMapper.toResponse(climbingAreaService.getById(id))
+        climbingAreaMapper.toResponse(climbingAreaService.getById(id), routeCountFor(id))
 
     @Operation(summary = "List walls for a climbing area")
     @ApiResponse(responseCode = "404", description = "Climbing area not found",
@@ -74,7 +78,7 @@ class ClimbingAreaController(
         @Valid @RequestBody request: CreateClimbingAreaRequest,
         ucb: UriComponentsBuilder
     ): ResponseEntity<ClimbingAreaResponse> {
-        val created = climbingAreaMapper.toResponse(climbingAreaService.create(request))
+        val created = climbingAreaMapper.toResponse(climbingAreaService.create(request), 0)
         val location = ucb.path("/api/climbing-areas/{id}").buildAndExpand(created.id).toUri()
         return ResponseEntity.created(location).body(created)
     }
@@ -86,7 +90,10 @@ class ClimbingAreaController(
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @PutMapping("/{id}")
     fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateClimbingAreaRequest): ClimbingAreaResponse =
-        climbingAreaMapper.toResponse(climbingAreaService.update(id, request))
+        climbingAreaMapper.toResponse(climbingAreaService.update(id, request), routeCountFor(id))
+
+    private fun routeCountFor(areaId: Int): Int =
+        climbingAreaService.getRouteCounts(listOf(areaId))[areaId] ?: 0
 
     @Operation(summary = "Delete a climbing area")
     @ApiResponse(responseCode = "204", description = "Climbing area deleted")
