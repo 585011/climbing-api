@@ -42,6 +42,26 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `GET areas returns routeCount aggregated across walls`() {
+        postJson(baseUrl, validArea)
+        postJson(baseUrl, """{"name":"Other Area"}""")
+        postJson("/api/walls", """{"areaId":1,"name":"Wall A"}""")
+        postJson("/api/walls", """{"areaId":1,"name":"Wall B"}""")
+        postJson("/api/routes", """{"wallId":1,"name":"Route 1","grade":"6a"}""")
+        postJson("/api/routes", """{"wallId":1,"name":"Route 2","grade":"6b"}""")
+        postJson("/api/routes", """{"wallId":2,"name":"Route 3","grade":"7a"}""")
+
+        mockMvc.perform(get(baseUrl).with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data[0].routeCount").value(3))
+            .andExpect(jsonPath("$.data[1].routeCount").value(0))
+
+        mockMvc.perform(get("$baseUrl/1").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.routeCount").value(3))
+    }
+
+    @Test
     fun `POST area returns 201 with Location header`() {
         mockMvc.perform(post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON).content(validArea))
             .andExpect(status().isCreated)
