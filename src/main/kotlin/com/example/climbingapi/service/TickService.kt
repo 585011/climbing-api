@@ -10,6 +10,7 @@ import com.example.climbingapi.repository.TickRepository
 import com.example.climbingapi.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Locale
 
 @Service
 class TickService(
@@ -42,7 +43,7 @@ class TickService(
             userId = userId,
             routeId = request.routeId,
             tickedAt = null,
-            style = request.style,
+            style = request.style?.lowercase(Locale.ROOT),
             rating = request.rating,
             personalNote = request.personalNote
         ))
@@ -51,7 +52,7 @@ class TickService(
     fun update(userId: Int, tickId: Int, request: UpdateTickRequest): UserRoute {
         val tick = getById(userId, tickId)
         return tickRepository.update(tickId, tick.copy(
-            style = request.style,
+            style = request.style?.lowercase(Locale.ROOT),
             rating = request.rating,
             personalNote = request.personalNote
         )) ?: throw NotFoundException("Tick not found: $tickId")

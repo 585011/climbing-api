@@ -221,4 +221,46 @@ class TickControllerIT : IntegrationTestBase() {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
     }
+
+    @Test
+    fun `POST tick with free solo style returns 201`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"style":"free solo"}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.style").value("free solo"))
+    }
+
+    @Test
+    fun `POST tick with capitalized style is normalized to lowercase`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"style":"Free Solo"}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.style").value("free solo"))
+    }
+
+    @Test
+    fun `POST tick with Norwegian characters in personalNote returns 201`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"personalNote":"Rå økt på Ærfuglveggen"}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.personalNote").value("Rå økt på Ærfuglveggen"))
+    }
+
+    @Test
+    fun `PUT tick with Norwegian characters in personalNote returns 200`() {
+        postJson(ticksUrl(), """{"routeId":$routeId}""")
+
+        mockMvc.perform(
+            put("${ticksUrl()}/1").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"personalNote":"Løs stein øverst, sjekk før du går"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.personalNote").value("Løs stein øverst, sjekk før du går"))
+    }
 }
