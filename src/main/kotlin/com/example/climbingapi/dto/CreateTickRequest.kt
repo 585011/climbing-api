@@ -9,8 +9,9 @@ data class CreateTickRequest(
     @field:Min(1) val routeId: Int,
 
     @field:Pattern(
-        regexp = "^(onsight|flash|redpoint)$",
-        message = "style must be one of: onsight, flash, redpoint."
+        regexp = "^(onsight|flash|redpoint|free solo)$",
+        flags = [Pattern.Flag.CASE_INSENSITIVE],
+        message = "style must be one of: onsight, flash, redpoint, free solo."
     )
     val style: String?,
 
@@ -18,7 +19,7 @@ data class CreateTickRequest(
 
     @field:Size(max = 500, message = "personalNote must be at most 500 characters.")
     @field:Pattern(
-        regexp = "^[\\w\\s'.,!?()\\-]*$",
+        regexp = "^[\\p{L}\\p{N}_\\s'.,!?()\\-]*$",
         message = "personalNote contains invalid characters."
     )
     val personalNote: String?

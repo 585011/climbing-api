@@ -74,6 +74,19 @@ class TickServiceTest {
     }
 
     @Test
+    fun `create lowercases style before persisting`() {
+        val request = CreateTickRequest(routeId = 1, style = "Free Solo", rating = null, personalNote = null)
+        val expected = sampleTick.copy(style = "free solo")
+        `when`(userRepository.getById(1)).thenReturn(sampleUser)
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(tickRepository.create(UserRoute(null, 1, 1, null, "free solo", null, null))).thenReturn(expected)
+
+        val result = tickService.create(1, request)
+
+        assertEquals(expected, result)
+    }
+
+    @Test
     fun `create throws NotFoundException when route missing`() {
         val request = CreateTickRequest(routeId = 99, style = null, rating = null, personalNote = null)
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
