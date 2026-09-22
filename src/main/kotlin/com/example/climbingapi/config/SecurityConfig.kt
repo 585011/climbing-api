@@ -53,6 +53,8 @@ class SecurityConfig(
             }
             .authorizeHttpRequests {
                 it.requestMatchers(HttpMethod.GET, "/health").permitAll()
+                // Gym routes rotate weekly, so any user may retire one; RouteService enforces the gym-only rule
+                it.requestMatchers(HttpMethod.PUT, "/api/routes/*/retired").authenticated()
                 it.requestMatchers(HttpMethod.POST, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")
                 it.requestMatchers(HttpMethod.PUT, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")
                 it.requestMatchers(HttpMethod.DELETE, "/api/climbing-areas/**", "/api/walls/**", "/api/routes/**").hasRole("admin")

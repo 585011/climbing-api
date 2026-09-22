@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.Pattern
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
@@ -127,10 +128,11 @@ class UserController(
         @PathVariable userId: Int,
         @RequestParam(defaultValue = "0") @Min(0) page: Int,
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+        @RequestParam(required = false) @Pattern(regexp = "^(crag|gym)$", message = "areaType must be one of: crag, gym.") areaType: String?,
         jwt: JwtAuthenticationToken
     ): PagedResponse<TickResponse> {
         userService.assertOwner(userId, jwt.token.subject)
-        val paged = tickService.getByUserId(userId, page, size)
+        val paged = tickService.getByUserId(userId, page, size, areaType)
         return PagedResponse(paged.data.map { tickMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
     }
 }

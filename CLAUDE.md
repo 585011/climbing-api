@@ -98,21 +98,22 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/walls` | List all walls; supports `?page=0&size=20` (max 100) |
 | GET | `/api/walls/{id}` | 404 if not found |
 | POST | `/api/walls` | Returns 201; `areaId` required. Accepts `application/json`, or `multipart/form-data` with a JSON part `wall` + optional `image` file (admin only) |
-| GET | `/api/walls/{wallId}/routes` | 404 if wall not found |
+| GET | `/api/walls/{wallId}/routes` | 404 if wall not found; retired routes hidden unless `?includeRetired=true` |
 | PUT | `/api/walls/{id}` | Full replace; 404 if not found. Does not touch `image_key` |
 | PUT | `/api/walls/{id}/image` | Admin only; `multipart/form-data` with an `image` file; uploads to R2, replaces old image; 404 if wall not found |
-| GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100) |
+| GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100); retired routes hidden unless `?includeRetired=true` |
 | GET | `/api/routes/{id}` | 404 if not found |
 | POST | `/api/routes` | Returns 201; validates wall exists |
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
+| PUT | `/api/routes/{id}/retired` | Body `{retired}`. Any user may retire a gym route; un-retire and crag routes are admin only (403) |
 | GET | `/api/users` | List all users; supports `?page=0&size=20` (max 100) |
 | GET | `/api/users/{id}` | 404 if not found |
 | GET | `/api/users/me` | Returns the authenticated user's own profile; 404 if not yet registered |
 | POST | `/api/users/me` | Self-register: creates user from JWT claims (`sub` → auth0Id, `email` claim); body: `{displayName}`; returns 201 |
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
-| GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20`; 403 if not owner; 404 if user not found |
-| POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist |
+| GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20` and `?areaType=crag\|gym`; 403 if not owner; 404 if user not found |
+| POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist. Body takes exactly one of `routeId` or `newRoute {wallId, grade, style, holdColor?, name?}` (gym walls only, 400 otherwise) |
 | GET | `/api/users/{userId}/ticks/{tickId}` | 403 if not owner; 404 if user or tick not found |
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote; 403 if not owner |
 | DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found |
@@ -140,7 +141,7 @@ All five domain types have a complete Controller/Service/Repository stack.
 - All REST endpoints are prefixed with `/api`.
 - All `/api/**` endpoints require a valid Auth0 JWT (`Authorization: Bearer <token>`). Returns 401 if missing, 403 if the caller is not the resource owner.
 - Tick and user-write endpoints enforce ownership: the JWT `sub` claim must match `auth0_id` on the user record.
-- Catalog writes (POST/PUT/DELETE on `/api/climbing-areas`, `/api/walls`, `/api/routes`) require the `admin` role. Roles come from the `https://climbing-api/roles` JWT claim (set by an Auth0 post-login Action) and are mapped to `ROLE_admin` in `SecurityConfig.kt`. Reads of these resources, and own-resource tick/user writes, need only authentication. The role check runs in the security filter *before* controller validation, so a non-admin write returns 403 (never 400).
+- Catalog writes (POST/PUT/DELETE on `/api/climbing-areas`, `/api/walls`, `/api/routes`) require the `admin` role, with one exception: `PUT /api/routes/{id}/retired` is open to any authenticated user and `RouteService.setRetired` enforces the gym-only rule. Roles come from the `https://climbing-api/roles` JWT claim (set by an Auth0 post-login Action) and are mapped to `ROLE_admin` in `SecurityConfig.kt`. Reads of these resources, and own-resource tick/user writes, need only authentication. The role check runs in the security filter *before* controller validation, so a non-admin write returns 403 (never 400).
 - Multi-step service methods (e.g. validate → insert) are annotated `@Transactional`.
 - List endpoints return `PagedResponse<T>` with `data`, `page`, `pageSize`, `total` fields. Size is clamped to max 100 in the service layer.
 
@@ -155,6 +156,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V3__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
 | `V4__widen_description_columns.sql` | Widen `walls.description` and `walls.approach_info` to `TEXT` |
 | `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` (R2 object key for the wall image) |
+| `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
 
 ## Wall images
 
@@ -164,6 +166,13 @@ the R2 **object key** (`walls.image_key`); read responses expose a short-lived *
 /api/walls` and `PUT /api/walls/{id}/image`) are admin-only, accept JPEG/PNG/WebP up to 5 MB, and replace
 the previous object best-effort. `StorageService` is the storage port; `R2StorageService` is the AWS SDK v2
 implementation, wired in `config/StorageConfig.kt` from `config/R2Properties.kt` (`storage.r2.*`).
+
+## Climbing gyms
+
+A gym is a `climbing_areas` row with `type = 'gym'`; its walls are admin-created sectors. Gym routes rotate
+often, so regular users can create one inline while ticking (`newRoute` on the tick request; `created_by` records
+who) and anyone can retire one. Routes are **retired** (`retired_at`), never deleted on rotation, so ticks and
+history survive — retired routes are hidden from route lists and area route counts but still resolvable by id.
 
 ## Related projects
 

@@ -1,12 +1,14 @@
 package com.example.climbingapi.dto
 
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
+/** Exactly one of [routeId] (tick an existing route) or [newRoute] (create a gym route and tick it). */
 data class CreateTickRequest(
-    @field:Min(1) val routeId: Int,
+    @field:Min(1) val routeId: Int?,
 
     @field:Pattern(
         regexp = "^(onsight|flash|redpoint|free solo)$",
@@ -22,5 +24,8 @@ data class CreateTickRequest(
         regexp = "^[\\p{L}\\p{N}_\\s'.,!?()\\-]*$",
         message = "personalNote contains invalid characters."
     )
-    val personalNote: String?
+    val personalNote: String?,
+
+    @field:Valid
+    val newRoute: NewGymRouteRequest? = null
 )
