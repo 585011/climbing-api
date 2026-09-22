@@ -2,9 +2,12 @@ package com.example.climbingapi
 
 import com.example.climbingapi.dto.CreateRouteRequest
 import com.example.climbingapi.dto.UpdateRouteRequest
+import com.example.climbingapi.exception.ForbiddenException
 import com.example.climbingapi.exception.NotFoundException
+import com.example.climbingapi.model.ClimbingArea
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.Wall
+import com.example.climbingapi.repository.ClimbingAreaRepository
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.WallRepository
 import com.example.climbingapi.service.RouteService
@@ -14,6 +17,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import java.time.OffsetDateTime
@@ -23,6 +28,7 @@ class RouteServiceTest {
 
     @Mock lateinit var routeRepository: RouteRepository
     @Mock lateinit var wallRepository: WallRepository
+    @Mock lateinit var climbingAreaRepository: ClimbingAreaRepository
 
     @InjectMocks
     lateinit var routeService: RouteService
@@ -109,5 +115,49 @@ class RouteServiceTest {
         `when`(routeRepository.count()).thenReturn(0)
         val result = routeService.getAll(0, 200)
         assertEquals(100, result.pageSize)
+    }
+
+    private fun area(type: String) = ClimbingArea(1, "Area", null, null, null, null, OffsetDateTime.now(), type)
+
+    @Test
+    fun `setRetired lets a non-admin retire a gym route`() {
+        val retired = sampleRoute.copy(retiredAt = OffsetDateTime.now())
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(wallRepository.getById(1)).thenReturn(sampleWall)
+        `when`(climbingAreaRepository.getById(1)).thenReturn(area("gym"))
+        `when`(routeRepository.setRetired(1, true)).thenReturn(retired)
+
+        assertEquals(retired, routeService.setRetired(1, retired = true, isAdmin = false))
+    }
+
+    @Test
+    fun `setRetired forbids a non-admin retiring a crag route`() {
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(wallRepository.getById(1)).thenReturn(sampleWall)
+        `when`(climbingAreaRepository.getById(1)).thenReturn(area("crag"))
+
+        assertThrows(ForbiddenException::class.java) { routeService.setRetired(1, retired = true, isAdmin = false) }
+        verify(routeRepository, never()).setRetired(1, true)
+    }
+
+    @Test
+    fun `setRetired forbids a non-admin un-retiring a route`() {
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+
+        assertThrows(ForbiddenException::class.java) { routeService.setRetired(1, retired = false, isAdmin = false) }
+    }
+
+    @Test
+    fun `setRetired lets an admin retire any route`() {
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(routeRepository.setRetired(1, true)).thenReturn(sampleRoute)
+
+        assertEquals(sampleRoute, routeService.setRetired(1, retired = true, isAdmin = true))
+    }
+
+    @Test
+    fun `setRetired throws NotFoundException when route missing`() {
+        `when`(routeRepository.getById(99)).thenReturn(null)
+        assertThrows(NotFoundException::class.java) { routeService.setRetired(99, retired = true, isAdmin = true) }
     }
 }

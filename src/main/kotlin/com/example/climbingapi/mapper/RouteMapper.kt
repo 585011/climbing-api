@@ -19,7 +19,9 @@ class RouteMapper {
             ropeLengths = route.ropeLengths,
             firstAscendant = route.firstAscendant,
             description = route.description,
-            createdAt = route.createdAt!!
+            createdAt = route.createdAt!!,
+            holdColor = route.holdColor,
+            retiredAt = route.retiredAt
         )
     }
 }
