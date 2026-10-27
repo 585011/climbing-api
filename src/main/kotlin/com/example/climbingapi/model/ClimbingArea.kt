@@ -10,5 +10,6 @@ data class ClimbingArea(
     val latitude: BigDecimal?,
     val longitude: BigDecimal?,
     val region: String?,
-    val createdAt: OffsetDateTime?
+    val createdAt: OffsetDateTime?,
+    val type: String? = null
 )

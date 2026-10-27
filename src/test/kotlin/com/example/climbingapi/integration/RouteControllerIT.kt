@@ -156,4 +156,111 @@ class RouteControllerIT : IntegrationTestBase() {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
     }
+
+    private fun gymWall(): Int {
+        val gymId = extractId(postJson("/api/climbing-areas", """{"name":"Vestveggen","type":"gym"}"""))
+        return extractId(postJson("/api/walls", """{"areaId":$gymId,"name":"12.5m"}"""))
+    }
+
+    private fun retire(id: Int, retired: Boolean, jwtPp: org.springframework.test.web.servlet.request.RequestPostProcessor) =
+        mockMvc.perform(
+            put("$baseUrl/$id/retired").with(jwtPp).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"retired":$retired}""")
+        )
+
+    @Test
+    fun `POST route lowercases style and returns holdColor`() {
+        mockMvc.perform(
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"wallId":$wallId,"grade":"6a","style":"Boulder","holdColor":"Gul"}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.style").value("boulder"))
+            .andExpect(jsonPath("$.holdColor").value("Gul"))
+            .andExpect(jsonPath("$.retiredAt").doesNotExist())
+    }
+
+    @Test
+    fun `POST route with unknown style returns 400`() {
+        mockMvc.perform(
+            post(baseUrl).with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"wallId":$wallId,"style":"alpine"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `non-admin can retire a gym route`() {
+        val routeId = extractId(postJson(baseUrl, """{"wallId":${gymWall()},"grade":"6a"}"""))
+
+        retire(routeId, true, testJwt())
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.retiredAt").exists())
+    }
+
+    @Test
+    fun `non-admin cannot retire a crag route`() {
+        val routeId = extractId(postJson(baseUrl, """{"wallId":$wallId,"grade":"6a"}"""))
+
+        retire(routeId, true, testJwt())
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+    }
+
+    @Test
+    fun `non-admin cannot un-retire but admin can`() {
+        val routeId = extractId(postJson(baseUrl, """{"wallId":${gymWall()},"grade":"6a"}"""))
+        retire(routeId, true, testJwt()).andExpect(status().isOk)
+
+        retire(routeId, false, testJwt()).andExpect(status().isForbidden)
+        retire(routeId, false, adminJwt())
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.retiredAt").doesNotExist())
+    }
+
+    @Test
+    fun `retire unknown route returns 404`() {
+        retire(9999, true, adminJwt()).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `retire without JWT returns 401`() {
+        mockMvc.perform(
+            put("$baseUrl/1/retired").contentType(MediaType.APPLICATION_JSON).content("""{"retired":true}""")
+        )
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `non-admin PUT route is still 403`() {
+        val routeId = extractId(postJson(baseUrl, """{"wallId":${gymWall()},"grade":"6a"}"""))
+        mockMvc.perform(
+            put("$baseUrl/$routeId").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"wallId":$wallId,"grade":"7a"}""")
+        )
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `retired routes are hidden from lists unless includeRetired`() {
+        val gymWallId = gymWall()
+        postJson(baseUrl, """{"wallId":$gymWallId,"grade":"6a"}""")
+        val retiredId = extractId(postJson(baseUrl, """{"wallId":$gymWallId,"grade":"6b"}"""))
+        retire(retiredId, true, testJwt()).andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/walls/$gymWallId/routes").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+        mockMvc.perform(get("/api/walls/$gymWallId/routes?includeRetired=true").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(2))
+        mockMvc.perform(get(baseUrl).with(testJwt()))
+            .andExpect(jsonPath("$.total").value(1))
+        mockMvc.perform(get("$baseUrl?includeRetired=true").with(testJwt()))
+            .andExpect(jsonPath("$.total").value(2))
+        mockMvc.perform(get("$baseUrl/$retiredId").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.retiredAt").exists())
+    }
 }

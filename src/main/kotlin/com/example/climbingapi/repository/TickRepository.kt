@@ -32,21 +32,32 @@ class TickRepository(
         return jdbcTemplate.query(sql, tickRowMapper, id).firstOrNull()
     }
 
-    fun findByUserId(userId: Int, page: Int, size: Int): List<UserRoute> {
+    // Optional filter on the ticked route's area type ('crag' | 'gym'); a NULL parameter matches all
+    private val areaTypeFilter = """
+        (?::text IS NULL OR EXISTS (
+            SELECT 1 FROM routes r
+            JOIN walls w ON w.id = r.wall_id
+            JOIN climbing_areas a ON a.id = w.area_id
+            WHERE r.id = t.route_id AND a.type = ?::text
+        ))
+    """.trimIndent()
+
+    fun findByUserId(userId: Int, page: Int, size: Int, areaType: String? = null): List<UserRoute> {
         val sql = """
-            SELECT id, user_id, route_id, ticked_at, style, rating, personal_note
-            FROM user_route_ticks
-            WHERE user_id = ?
-            ORDER BY ticked_at DESC
+            SELECT t.id, t.user_id, t.route_id, t.ticked_at, t.style, t.rating, t.personal_note
+            FROM user_route_ticks t
+            WHERE t.user_id = ?
+              AND $areaTypeFilter
+            ORDER BY t.ticked_at DESC
             LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, tickRowMapper, userId, size, page * size)
+        return jdbcTemplate.query(sql, tickRowMapper, userId, areaType, areaType, size, page * size)
     }
 
-    fun countByUserId(userId: Int): Int {
+    fun countByUserId(userId: Int, areaType: String? = null): Int {
         return jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM user_route_ticks WHERE user_id = ?",
-            Int::class.java, userId
+            "SELECT COUNT(*) FROM user_route_ticks t WHERE t.user_id = ? AND $areaTypeFilter",
+            Int::class.java, userId, areaType, areaType
         ) ?: 0
     }
 

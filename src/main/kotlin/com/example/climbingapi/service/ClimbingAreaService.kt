@@ -50,7 +50,8 @@ class ClimbingAreaService(
             latitude = request.latitude,
             longitude = request.longitude,
             region = request.region,
-            createdAt = null
+            createdAt = null,
+            type = request.type
         )) ?: throw NotFoundException("Climbing area not found: $id")
     }
 
@@ -62,7 +63,8 @@ class ClimbingAreaService(
             latitude = request.latitude,
             longitude = request.longitude,
             region = request.region,
-            createdAt = null
+            createdAt = null,
+            type = request.type
         ))
     }
 }

@@ -25,47 +25,52 @@ class RouteRepository(
             ropeLengths = rs.getInt("rope_lengths"),
             firstAscendant = rs.getString("first_ascendant"),
             description = rs.getString("description"),
-            createdAt = createdTime
+            createdAt = createdTime,
+            holdColor = rs.getString("hold_color"),
+            retiredAt = rs.getObject("retired_at", OffsetDateTime::class.java),
+            createdBy = rs.getObject("created_by") as Int?
         )
     }
 
-    fun getAll(page: Int, size: Int): List<Route> {
+    private val columns = """
+        id,
+        wall_id,
+        name,
+        grade,
+        length,
+        style,
+        bolts,
+        rope_lengths,
+        created_at,
+        first_ascendant,
+        description,
+        hold_color,
+        retired_at,
+        created_by
+    """.trimIndent()
+
+    private fun activeFilter(includeRetired: Boolean) = if (includeRetired) "TRUE" else "retired_at IS NULL"
+
+    fun getAll(page: Int, size: Int, includeRetired: Boolean = false): List<Route> {
         val sql = """
-            SELECT id,
-                   wall_id,
-                   name,
-                   grade,
-                   length,
-                   style,
-                   bolts,
-                   rope_lengths,
-                   created_at,
-                   first_ascendant,
-                   description
+            SELECT $columns
             FROM routes
+            WHERE ${activeFilter(includeRetired)}
             ORDER BY id
             LIMIT ? OFFSET ?
         """.trimIndent()
         return jdbcTemplate.query(sql, routeRowMapper, size, page * size)
     }
 
-    fun count(): Int {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM routes", Int::class.java) ?: 0
+    fun count(includeRetired: Boolean = false): Int {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM routes WHERE ${activeFilter(includeRetired)}", Int::class.java
+        ) ?: 0
     }
 
     fun getById(id: Int): Route? {
         val sql = """
-            SELECT id,
-                   wall_id,
-                   name,
-                   grade,
-                   length,
-                   style,
-                   bolts,
-                   rope_lengths,
-                   created_at,
-                   first_ascendant,
-                   description
+            SELECT $columns
             FROM routes
             WHERE id = ?
         """.trimIndent()
@@ -80,6 +85,7 @@ class RouteRepository(
             FROM routes r
             JOIN walls w ON w.id = r.wall_id
             WHERE w.area_id IN ($placeholders)
+              AND r.retired_at IS NULL
             GROUP BY w.area_id
         """.trimIndent()
         return jdbcTemplate.query(
@@ -89,21 +95,12 @@ class RouteRepository(
         ).toMap()
     }
 
-    fun findByWallId(wallId: Int): List<Route> {
+    fun findByWallId(wallId: Int, includeRetired: Boolean = false): List<Route> {
         val sql = """
-            SELECT id,
-                   wall_id,
-                   name,
-                   grade,
-                   length,
-                   style,
-                   bolts,
-                   rope_lengths,
-                   created_at,
-                   first_ascendant,
-                   description
+            SELECT $columns
             FROM routes
             WHERE wall_id = ?
+              AND ${activeFilter(includeRetired)}
             ORDER BY id
         """.trimIndent()
         return jdbcTemplate.query(sql, routeRowMapper, wallId)
@@ -111,6 +108,16 @@ class RouteRepository(
 
     fun deleteById(id: Int): Boolean {
         return jdbcTemplate.update("DELETE FROM routes WHERE id = ?", id) == 1
+    }
+
+    fun setRetired(id: Int, retired: Boolean): Route? {
+        val sql = """
+            UPDATE routes
+            SET retired_at = CASE WHEN ? THEN COALESCE(retired_at, CURRENT_TIMESTAMP) ELSE NULL END
+            WHERE id = ?
+            RETURNING $columns
+        """.trimIndent()
+        return jdbcTemplate.query(sql, routeRowMapper, retired, id).firstOrNull()
     }
 
     fun update(id: Int, route: Route): Route? {
@@ -124,19 +131,10 @@ class RouteRepository(
                 bolts = ?,
                 rope_lengths = ?,
                 first_ascendant = ?,
-                description = ?
+                description = ?,
+                hold_color = ?
             WHERE id = ?
-            RETURNING id,
-                      wall_id,
-                      name,
-                      grade,
-                      length,
-                      style,
-                      bolts,
-                      rope_lengths,
-                      created_at,
-                      first_ascendant,
-                      description
+            RETURNING $columns
         """.trimIndent()
         return jdbcTemplate.query(
             sql,
@@ -150,6 +148,7 @@ class RouteRepository(
             route.ropeLengths,
             route.firstAscendant,
             route.description,
+            route.holdColor,
             id
         ).firstOrNull()
     }
@@ -165,20 +164,12 @@ class RouteRepository(
                 bolts,
                 rope_lengths,
                 first_ascendant,
-                description
+                description,
+                hold_color,
+                created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id,
-                      wall_id,
-                      name,
-                      grade,
-                      length,
-                      style,
-                      bolts,
-                      rope_lengths,
-                      created_at,
-                      first_ascendant,
-                      description
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING $columns
         """.trimIndent()
 
         return jdbcTemplate.query(
@@ -192,7 +183,9 @@ class RouteRepository(
             route.bolts,
             route.ropeLengths,
             route.firstAscendant,
-            route.description
+            route.description,
+            route.holdColor,
+            route.createdBy
         ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

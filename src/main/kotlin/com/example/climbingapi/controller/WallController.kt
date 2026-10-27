@@ -65,8 +65,11 @@ class WallController(
     @ApiResponse(responseCode = "404", description = "Wall not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{wallId}/routes")
-    fun getRoutes(@PathVariable wallId: Int): List<RouteResponse> =
-        wallService.getRoutes(wallId).map { routeMapper.toResponse(it) }
+    fun getRoutes(
+        @PathVariable wallId: Int,
+        @RequestParam(defaultValue = "false") includeRetired: Boolean
+    ): List<RouteResponse> =
+        wallService.getRoutes(wallId, includeRetired).map { routeMapper.toResponse(it) }
 
     @Operation(summary = "Create a wall")
     @ApiResponse(responseCode = "400", description = "Validation error",

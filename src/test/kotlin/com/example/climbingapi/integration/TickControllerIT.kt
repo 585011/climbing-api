@@ -263,4 +263,107 @@ class TickControllerIT : IntegrationTestBase() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.personalNote").value("Løs stein øverst, sjekk før du går"))
     }
+
+    private fun gymWall(): Int {
+        val gymId = extractId(postJson("/api/climbing-areas", """{"name":"BKS Laksevåg","type":"gym"}"""))
+        return extractId(postJson("/api/walls", """{"areaId":$gymId,"name":"Buldring"}"""))
+    }
+
+    @Test
+    fun `POST tick with newRoute on gym wall creates route and tick`() {
+        val gymWallId = gymWall()
+        val json = mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"style":"flash","newRoute":{"wallId":$gymWallId,"grade":"6B","style":"boulder","holdColor":"Gul"}}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.style").value("flash"))
+            .andReturn().response.contentAsString
+        val newRouteId = objectMapper.readTree(json).get("routeId").asInt()
+
+        mockMvc.perform(get("/api/routes/$newRouteId").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.wallId").value(gymWallId))
+            .andExpect(jsonPath("$.grade").value("6B"))
+            .andExpect(jsonPath("$.style").value("boulder"))
+            .andExpect(jsonPath("$.holdColor").value("Gul"))
+        val createdBy = jdbcTemplate.queryForObject("SELECT created_by FROM routes WHERE id = ?", Int::class.java, newRouteId)
+        org.junit.jupiter.api.Assertions.assertEquals(userId, createdBy)
+    }
+
+    @Test
+    fun `POST tick with newRoute on crag wall returns 400 and creates nothing`() {
+        val cragWallId = jdbcTemplate.queryForObject("SELECT wall_id FROM routes WHERE id = ?", Int::class.java, routeId)
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"newRoute":{"wallId":$cragWallId,"grade":"6a","style":"sport"}}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        val routes = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM routes", Int::class.java)
+        org.junit.jupiter.api.Assertions.assertEquals(1, routes)
+    }
+
+    @Test
+    fun `POST tick with both routeId and newRoute returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"routeId":$routeId,"newRoute":{"wallId":${gymWall()},"grade":"6B","style":"boulder"}}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `POST tick with neither routeId nor newRoute returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content("""{"style":"flash"}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `POST tick with invalid newRoute returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"newRoute":{"wallId":${gymWall()},"grade":"","style":"alpine"}}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `POST tick on a retired route is allowed`() {
+        jdbcTemplate.update("UPDATE routes SET retired_at = now() WHERE id = ?", routeId)
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON).content("""{"routeId":$routeId}""")
+        )
+            .andExpect(status().isCreated)
+    }
+
+    @Test
+    fun `GET ticks filters by areaType`() {
+        postJson(ticksUrl(), """{"routeId":$routeId}""", testJwt())
+        postJson(ticksUrl(), """{"newRoute":{"wallId":${gymWall()},"grade":"6B","style":"boulder"}}""", testJwt())
+
+        mockMvc.perform(get(ticksUrl()).with(testJwt()))
+            .andExpect(jsonPath("$.total").value(2))
+        mockMvc.perform(get("${ticksUrl()}?areaType=gym").with(testJwt()))
+            .andExpect(jsonPath("$.total").value(1))
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].routeId").value(org.hamcrest.Matchers.not(routeId)))
+        mockMvc.perform(get("${ticksUrl()}?areaType=crag").with(testJwt()))
+            .andExpect(jsonPath("$.total").value(1))
+            .andExpect(jsonPath("$.data[0].routeId").value(routeId))
+        mockMvc.perform(get("${ticksUrl()}?areaType=indoor").with(testJwt()))
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `ticks survive when their gym route is retired`() {
+        postJson(ticksUrl(), """{"routeId":$routeId}""", testJwt())
+        jdbcTemplate.update("UPDATE routes SET retired_at = now() WHERE id = ?", routeId)
+
+        mockMvc.perform(get(ticksUrl()).with(testJwt()))
+            .andExpect(jsonPath("$.total").value(1))
+    }
 }

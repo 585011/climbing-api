@@ -25,5 +25,8 @@ data class UpdateClimbingAreaRequest(
 
     @field:Size(max = 100, message = "region must be at most 100 characters.")
     @field:Pattern(regexp = "^[\\p{L}\\s'\\-.,]*$", message = "region contains invalid characters.")
-    val region: String?
+    val region: String?,
+
+    @field:Pattern(regexp = "^(crag|gym)$", message = "type must be one of: crag, gym.")
+    val type: String? = null
 )

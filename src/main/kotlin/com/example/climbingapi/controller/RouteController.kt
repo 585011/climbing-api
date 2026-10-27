@@ -2,6 +2,7 @@ package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateRouteRequest
 import com.example.climbingapi.dto.PagedResponse
+import com.example.climbingapi.dto.RetireRouteRequest
 import com.example.climbingapi.dto.RouteResponse
 import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.ErrorResponse
@@ -17,6 +18,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.Authentication
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -43,9 +45,10 @@ class RouteController(
     @GetMapping
     fun getAll(
         @RequestParam(defaultValue = "0") @Min(0) page: Int,
-        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+        @RequestParam(defaultValue = "false") includeRetired: Boolean
     ): PagedResponse<RouteResponse> {
-        val paged = routeService.getAll(page, size)
+        val paged = routeService.getAll(page, size, includeRetired)
         return PagedResponse(paged.data.map { routeMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
     }
 
@@ -73,6 +76,22 @@ class RouteController(
     @PutMapping("/{id}")
     fun update(@PathVariable id: Int, @Valid @RequestBody request: UpdateRouteRequest): RouteResponse =
         routeMapper.toResponse(routeService.update(id, request))
+
+    @Operation(summary = "Retire or un-retire a route",
+        description = "Any user may retire a route in a climbing gym; un-retiring and outdoor routes are admin only.")
+    @ApiResponse(responseCode = "403", description = "Not allowed to change this route",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "404", description = "Route not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PutMapping("/{id}/retired")
+    fun setRetired(
+        @PathVariable id: Int,
+        @Valid @RequestBody request: RetireRouteRequest,
+        authentication: Authentication
+    ): RouteResponse {
+        val isAdmin = authentication.authorities.any { it.authority == "ROLE_admin" }
+        return routeMapper.toResponse(routeService.setRetired(id, request.retired!!, isAdmin))
+    }
 
     @Operation(summary = "Delete a route")
     @ApiResponse(responseCode = "204", description = "Route deleted")

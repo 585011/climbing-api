@@ -18,8 +18,11 @@ data class CreateRouteRequest(
     @field:Min(value = 1, message = "length must be at least 1.")
     val length: Int?,
 
-    @field:Size(max = 50, message = "style must be at most 50 characters.")
-    @field:Pattern(regexp = "^[\\w\\-]*$", message = "style may only contain alphanumeric characters and hyphens.")
+    @field:Pattern(
+        regexp = "^(sport|trad|boulder|toprope|speed)$",
+        flags = [Pattern.Flag.CASE_INSENSITIVE],
+        message = "style must be one of: sport, trad, boulder, toprope, speed."
+    )
     val style: String?,
 
     @field:Min(value = 0, message = "bolts must be 0 or greater.")
@@ -33,5 +36,9 @@ data class CreateRouteRequest(
     val firstAscendant: String?,
 
     @field:Size(max = 2000, message = "description must be at most 2000 characters.")
-    val description: String?
+    val description: String?,
+
+    @field:Size(max = 30, message = "holdColor must be at most 30 characters.")
+    @field:Pattern(regexp = "^[\\p{L}\\s\\-]*$", message = "holdColor may only contain letters, spaces and hyphens.")
+    val holdColor: String? = null
 )

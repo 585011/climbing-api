@@ -37,9 +37,9 @@ class WallService(
         return wallRepository.findByAreaId(areaId)
     }
 
-    fun getRoutes(wallId: Int): List<Route> {
+    fun getRoutes(wallId: Int, includeRetired: Boolean = false): List<Route> {
         getById(wallId)
-        return routeService.getByWallId(wallId)
+        return routeService.getByWallId(wallId, includeRetired)
     }
 
     fun delete(id: Int) {

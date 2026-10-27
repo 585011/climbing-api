@@ -21,7 +21,8 @@ class ClimbingAreaRepository (
             latitude = rs.getBigDecimal("latitude"),
             longitude = rs.getBigDecimal("longitude"),
             region = rs.getString("region"),
-            createdAt = createdTime
+            createdAt = createdTime,
+            type = rs.getString("type")
         )
     }
 
@@ -33,7 +34,8 @@ class ClimbingAreaRepository (
                    latitude,
                    longitude,
                    region,
-                   created_at
+                   created_at,
+                   type
             FROM climbing_areas
             ORDER BY id
             LIMIT ? OFFSET ?
@@ -53,7 +55,8 @@ class ClimbingAreaRepository (
                    latitude,
                    longitude,
                    region,
-                   created_at
+                   created_at,
+                   type
             from climbing_areas
             WHERE id = ?
         """.trimIndent()
@@ -71,7 +74,8 @@ class ClimbingAreaRepository (
                 description = ?,
                 latitude = ?,
                 longitude = ?,
-                region = ?
+                region = ?,
+                type = COALESCE(?, type)
             WHERE id = ?
             RETURNING id,
                       name,
@@ -79,7 +83,8 @@ class ClimbingAreaRepository (
                       latitude,
                       longitude,
                       region,
-                      created_at
+                      created_at,
+                      type
         """.trimIndent()
         return jdbcTemplate.query(
             sql,
@@ -89,6 +94,7 @@ class ClimbingAreaRepository (
             climbingArea.latitude,
             climbingArea.longitude,
             climbingArea.region,
+            climbingArea.type,
             id
         ).firstOrNull()
     }
@@ -100,15 +106,17 @@ class ClimbingAreaRepository (
                 description,
                 latitude,
                 longitude,
-                region
-            ) VALUES (?, ?, ?, ?, ?)
+                region,
+                type
+            ) VALUES (?, ?, ?, ?, ?, COALESCE(?, 'crag'))
             RETURNING id,
             name,
             description,
             latitude,
             longitude,
             region,
-            created_at
+            created_at,
+            type
         """.trimIndent()
 
         return jdbcTemplate.query(
@@ -118,7 +126,8 @@ class ClimbingAreaRepository (
             climbingArea.description,
             climbingArea.latitude,
             climbingArea.longitude,
-            climbingArea.region
+            climbingArea.region,
+            climbingArea.type
         ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

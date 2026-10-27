@@ -13,5 +13,8 @@ data class Route(
     val ropeLengths: Int?,
     val firstAscendant: String?,
     val description: String?,
-    val createdAt: OffsetDateTime?
+    val createdAt: OffsetDateTime?,
+    val holdColor: String? = null,
+    val retiredAt: OffsetDateTime? = null,
+    val createdBy: Int? = null
 )

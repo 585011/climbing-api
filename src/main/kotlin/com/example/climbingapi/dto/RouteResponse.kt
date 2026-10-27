@@ -13,5 +13,7 @@ data class RouteResponse(
     val ropeLengths: Int?,
     val firstAscendant: String?,
     val description: String?,
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+    val holdColor: String?,
+    val retiredAt: OffsetDateTime?
 )

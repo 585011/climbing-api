@@ -177,4 +177,49 @@ class ClimbingAreaControllerIT : IntegrationTestBase() {
         mockMvc.perform(get("$baseUrl/999/walls").with(testJwt()))
             .andExpect(status().isNotFound)
     }
+
+    @Test
+    fun `POST area defaults type to crag`() {
+        mockMvc.perform(
+            post("/api/climbing-areas").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"Crag"}""")
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.type").value("crag"))
+    }
+
+    @Test
+    fun `POST gym area and PUT without type keeps gym`() {
+        val id = extractId(postJson("/api/climbing-areas", """{"name":"BKS Laksevåg","type":"gym"}"""))
+
+        mockMvc.perform(
+            put("/api/climbing-areas/$id").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"BKS Laksevåg"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.type").value("gym"))
+    }
+
+    @Test
+    fun `POST area with unknown type returns 400`() {
+        mockMvc.perform(
+            post("/api/climbing-areas").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"name":"X","type":"indoor"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `routeCount excludes retired routes`() {
+        val areaId = extractId(postJson("/api/climbing-areas", """{"name":"Gym","type":"gym"}"""))
+        val wallId = extractId(postJson("/api/walls", """{"areaId":$areaId,"name":"Buldring"}"""))
+        postJson("/api/routes", """{"wallId":$wallId,"grade":"6A"}""")
+        val retiredId = extractId(postJson("/api/routes", """{"wallId":$wallId,"grade":"6B"}"""))
+        jdbcTemplate.update("UPDATE routes SET retired_at = now() WHERE id = ?", retiredId)
+
+        mockMvc.perform(get("/api/climbing-areas/$areaId").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.routeCount").value(1))
+    }
 }

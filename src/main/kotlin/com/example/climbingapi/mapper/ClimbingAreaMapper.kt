@@ -16,7 +16,8 @@ class ClimbingAreaMapper {
             longitude = area.longitude,
             region = area.region,
             createdAt = area.createdAt!!,
-            routeCount = routeCount
+            routeCount = routeCount,
+            type = area.type!!
         )
     }
 }
