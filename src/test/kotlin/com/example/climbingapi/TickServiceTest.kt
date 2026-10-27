@@ -4,6 +4,7 @@ import com.example.climbingapi.dto.CreateTickRequest
 import com.example.climbingapi.dto.NewGymRouteRequest
 import com.example.climbingapi.dto.UpdateTickRequest
 import com.example.climbingapi.exception.NotFoundException
+import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.ClimbingArea
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.User
@@ -14,6 +15,9 @@ import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.TickRepository
 import com.example.climbingapi.repository.UserRepository
 import com.example.climbingapi.repository.WallRepository
+import com.example.climbingapi.service.ImageVariantService
+import com.example.climbingapi.service.ImageVariants
+import com.example.climbingapi.service.StorageService
 import com.example.climbingapi.service.TickService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -24,8 +28,10 @@ import org.mockito.Mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.mock.web.MockMultipartFile
 import java.time.OffsetDateTime
 
 @ExtendWith(MockitoExtension::class)
@@ -36,6 +42,8 @@ class TickServiceTest {
     @Mock lateinit var routeRepository: RouteRepository
     @Mock lateinit var wallRepository: WallRepository
     @Mock lateinit var climbingAreaRepository: ClimbingAreaRepository
+    @Mock lateinit var storageService: StorageService
+    @Mock lateinit var imageVariantService: ImageVariantService
 
     @InjectMocks
     lateinit var tickService: TickService
@@ -186,5 +194,73 @@ class TickServiceTest {
         val result = tickService.getByUserId(1, 0, 20, "gym")
 
         assertEquals(1, result.total)
+    }
+
+    private val variants = ImageVariants(optimized = byteArrayOf(9), thumbnail = byteArrayOf(8), contentType = "image/jpeg")
+    private val jpeg = MockMultipartFile("image", "route.jpg", "image/jpeg", byteArrayOf(1, 2, 3))
+
+    /** Stubs the tick → route → wall → area chain behind replacePhoto's gym check. */
+    private fun stubTickInArea(type: String, tick: UserRoute = sampleTick) {
+        `when`(userRepository.getById(1)).thenReturn(sampleUser)
+        `when`(tickRepository.getById(1)).thenReturn(tick)
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(wallRepository.getById(1)).thenReturn(sampleWall)
+        `when`(climbingAreaRepository.getById(1)).thenReturn(area(type))
+    }
+
+    @Test
+    fun `replacePhoto stores only the resized variant under ticks and deletes the old photo`() {
+        stubTickInArea("gym", sampleTick.copy(photoKey = "ticks/old.jpg"))
+        `when`(imageVariantService.generate(jpeg.bytes, "image/jpeg")).thenReturn(variants)
+        `when`(storageService.upload(variants.optimized, "image/jpeg", "ticks")).thenReturn("ticks/new.jpg")
+        `when`(tickRepository.updatePhotoKey(1, "ticks/new.jpg")).thenReturn(sampleTick.copy(photoKey = "ticks/new.jpg"))
+
+        val result = tickService.replacePhoto(1, 1, jpeg)
+
+        assertEquals("ticks/new.jpg", result.photoKey)
+        verify(storageService).upload(variants.optimized, "image/jpeg", "ticks")
+        verify(storageService).delete("ticks/old.jpg")
+        verifyNoMoreInteractions(storageService) // no original or thumbnail kept
+    }
+
+    @Test
+    fun `replacePhoto on a crag tick is rejected before anything is stored`() {
+        stubTickInArea("crag")
+
+        assertThrows(IllegalArgumentException::class.java) { tickService.replacePhoto(1, 1, jpeg) }
+        verifyNoInteractions(imageVariantService, storageService)
+    }
+
+    @Test
+    fun `replacePhoto rejects unsupported types and files over 5 MB`() {
+        stubTickInArea("gym")
+        val text = MockMultipartFile("image", "note.txt", "text/plain", byteArrayOf(1))
+        val huge = MockMultipartFile("image", "big.jpg", "image/jpeg", ByteArray(5 * 1024 * 1024 + 1))
+
+        assertThrows(IllegalArgumentException::class.java) { tickService.replacePhoto(1, 1, text) }
+        assertThrows(PayloadTooLargeException::class.java) { tickService.replacePhoto(1, 1, huge) }
+        verifyNoInteractions(imageVariantService, storageService)
+    }
+
+    @Test
+    fun `replacePhoto deletes the uploaded object when saving its key fails`() {
+        stubTickInArea("gym")
+        `when`(imageVariantService.generate(jpeg.bytes, "image/jpeg")).thenReturn(variants)
+        `when`(storageService.upload(variants.optimized, "image/jpeg", "ticks")).thenReturn("ticks/new.jpg")
+        `when`(tickRepository.updatePhotoKey(1, "ticks/new.jpg")).thenReturn(null)
+
+        assertThrows(NotFoundException::class.java) { tickService.replacePhoto(1, 1, jpeg) }
+        verify(storageService).delete("ticks/new.jpg")
+    }
+
+    @Test
+    fun `delete also removes the tick's photo from storage`() {
+        `when`(userRepository.getById(1)).thenReturn(sampleUser)
+        `when`(tickRepository.getById(1)).thenReturn(sampleTick.copy(photoKey = "ticks/old.jpg"))
+
+        tickService.delete(1, 1)
+
+        verify(tickRepository).deleteById(1)
+        verify(storageService).delete("ticks/old.jpg")
     }
 }

@@ -9,5 +9,6 @@ data class UserRoute(
     val tickedAt: OffsetDateTime?,
     val style: String?,
     val rating: Int?,
-    val personalNote: String?
+    val personalNote: String?,
+    val photoKey: String? = null
 )
