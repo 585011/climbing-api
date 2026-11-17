@@ -23,8 +23,8 @@ class R2StorageService(
     private val props: R2Properties
 ) : StorageService {
 
-    override fun upload(bytes: ByteArray, contentType: String): String {
-        val key = "walls/${UUID.randomUUID()}.${extensionFor(contentType)}"
+    override fun upload(bytes: ByteArray, contentType: String, prefix: String): String {
+        val key = "$prefix/${UUID.randomUUID()}.${extensionFor(contentType)}"
         s3Client.putObject(
             PutObjectRequest.builder()
                 .bucket(props.bucket)

@@ -2,15 +2,20 @@ package com.example.climbingapi.integration
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
+@Import(WallControllerIT.FakeStorageConfig::class)
 class TickControllerIT : IntegrationTestBase() {
 
     private var userId = 0
@@ -365,5 +370,60 @@ class TickControllerIT : IntegrationTestBase() {
 
         mockMvc.perform(get(ticksUrl()).with(testJwt()))
             .andExpect(jsonPath("$.total").value(1))
+    }
+
+    private fun gymTick(): Int = extractId(postJson(
+        ticksUrl(), """{"style":"flash","newRoute":{"wallId":${gymWall()},"grade":"6B","style":"boulder"}}""", testJwt()
+    ))
+
+    private fun photoUrl(tickId: Int) = "${ticksUrl()}/$tickId/photo"
+
+    private fun photoPart(): MockMultipartFile {
+        val img = java.awt.image.BufferedImage(160, 120, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val out = java.io.ByteArrayOutputStream()
+        javax.imageio.ImageIO.write(img, "jpg", out)
+        return MockMultipartFile("image", "route.jpg", "image/jpeg", out.toByteArray())
+    }
+
+    @Test
+    fun `PUT photo on a gym tick stores it and exposes a presigned photoUrl`() {
+        val tickId = gymTick()
+        val presigned = org.hamcrest.Matchers.startsWith("https://fake-r2.local/ticks/")
+
+        mockMvc.perform(multipart(HttpMethod.PUT, photoUrl(tickId)).file(photoPart()).with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(tickId))
+            .andExpect(jsonPath("$.photoUrl").value(presigned))
+
+        mockMvc.perform(get("${ticksUrl()}/$tickId").with(testJwt()))
+            .andExpect(jsonPath("$.photoUrl").value(presigned))
+    }
+
+    @Test
+    fun `PUT photo on a crag tick returns 400`() {
+        val tickId = extractId(postJson(ticksUrl(), """{"routeId":$routeId}""", testJwt()))
+
+        mockMvc.perform(multipart(HttpMethod.PUT, photoUrl(tickId)).file(photoPart()).with(testJwt()))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `PUT photo with a non-image file returns 400`() {
+        val text = MockMultipartFile("image", "note.txt", "text/plain", "hi".toByteArray())
+
+        mockMvc.perform(multipart(HttpMethod.PUT, photoUrl(gymTick())).file(text).with(testJwt()))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `PUT photo on another user's tick returns 403`() {
+        val tickId = gymTick()
+
+        mockMvc.perform(
+            multipart(HttpMethod.PUT, photoUrl(tickId)).file(photoPart()).with(testJwt(sub = "google-oauth2|other-999"))
+        )
+            .andExpect(status().isForbidden)
     }
 }

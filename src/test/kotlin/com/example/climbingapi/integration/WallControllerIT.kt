@@ -29,14 +29,14 @@ class WallControllerIT : IntegrationTestBase() {
         @Bean
         @Primary
         fun fakeStorageService(): StorageService = object : StorageService {
-            override fun upload(bytes: ByteArray, contentType: String): String {
+            override fun upload(bytes: ByteArray, contentType: String, prefix: String): String {
                 val ext = when (contentType) {
                     "image/jpeg" -> "jpg"
                     "image/png" -> "png"
                     "image/webp" -> "webp"
                     else -> throw IllegalArgumentException("Unsupported image type: $contentType")
                 }
-                return "walls/${UUID.randomUUID()}.$ext"
+                return "$prefix/${UUID.randomUUID()}.$ext"
             }
 
             override fun delete(key: String) { /* no-op */ }

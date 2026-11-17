@@ -9,5 +9,7 @@ data class TickResponse(
     val tickedAt: OffsetDateTime,
     val style: String?,
     val rating: Int?,
-    val personalNote: String?
+    val personalNote: String?,
+    /** Gym ticks only: short-lived presigned URL of the tick's photo, or null. */
+    val photoUrl: String?
 )

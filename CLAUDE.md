@@ -116,7 +116,8 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist. Body takes exactly one of `routeId` or `newRoute {wallId, grade, style, holdColor?, name?}` (gym walls only, 400 otherwise) |
 | GET | `/api/users/{userId}/ticks/{tickId}` | 403 if not owner; 404 if user or tick not found |
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote; 403 if not owner |
-| DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found |
+| PUT | `/api/users/{userId}/ticks/{tickId}/photo` | Add/replace the tick's photo; `multipart/form-data` with an `image` file (JPEG/PNG/WebP, max 5 MB); gym ticks only (400 otherwise); 403 if not owner |
+| DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found. Also deletes the tick's photo object |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -157,6 +158,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V4__widen_description_columns.sql` | Widen `walls.description` and `walls.approach_info` to `TEXT` |
 | `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` (R2 object key for the wall image) |
 | `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
+| `V8__add_tick_photo_key.sql` | Add nullable `photo_key VARCHAR(512)` to `user_route_ticks` (R2 object key for a gym tick's photo) |
 
 ## Wall images
 
@@ -166,6 +168,12 @@ the R2 **object key** (`walls.image_key`); read responses expose a short-lived *
 /api/walls` and `PUT /api/walls/{id}/image`) are admin-only, accept JPEG/PNG/WebP up to 5 MB, and replace
 the previous object best-effort. `StorageService` is the storage port; `R2StorageService` is the AWS SDK v2
 implementation, wired in `config/StorageConfig.kt` from `config/R2Properties.kt` (`storage.r2.*`).
+
+**Tick photos** (gym ticks only, so climbers remember a route after it's reset) use the same storage under the
+`ticks/` key prefix (`StorageService.upload(…, prefix)`; wall keys stay under `walls/`). `TickService.replacePhoto`
+keeps only the resized JPEG from `ImageVariantService` — no original or thumbnail — so stored photos stay small
+even if a client skips its own compression. `user_route_ticks.photo_key` holds the key; `TickResponse.photoUrl` is
+the presigned URL. Deleting a tick deletes its photo object; cascade deletes (user/route/wall) do not.
 
 ## Climbing gyms
 

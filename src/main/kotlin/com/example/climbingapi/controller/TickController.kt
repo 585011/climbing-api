@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -23,8 +24,10 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.util.UriComponentsBuilder
 
 @Tag(name = "Ticks", description = "Track ascended routes")
@@ -87,6 +90,27 @@ class TickController(
     ): TickResponse {
         userService.assertOwner(userId, jwt.token.subject)
         return tickMapper.toResponse(tickService.update(userId, tickId, request))
+    }
+
+    @Operation(summary = "Upload or replace a gym tick's photo",
+        description = "multipart/form-data with an 'image' file part. Gym ticks only; stored as a resized JPEG.")
+    @ApiResponse(responseCode = "400", description = "Not a gym tick, or invalid image",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "403", description = "Not the owner",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "404", description = "User or tick not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "413", description = "Photo larger than 5 MB",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PutMapping("/{tickId}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun replacePhoto(
+        @PathVariable userId: Int,
+        @PathVariable tickId: Int,
+        @RequestPart("image") image: MultipartFile,
+        jwt: JwtAuthenticationToken
+    ): TickResponse {
+        userService.assertOwner(userId, jwt.token.subject)
+        return tickMapper.toResponse(tickService.replacePhoto(userId, tickId, image))
     }
 
     @Operation(summary = "Delete a tick")

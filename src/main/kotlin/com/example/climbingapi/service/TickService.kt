@@ -5,6 +5,7 @@ import com.example.climbingapi.dto.NewGymRouteRequest
 import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.UpdateTickRequest
 import com.example.climbingapi.exception.NotFoundException
+import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.UserRoute
 import com.example.climbingapi.repository.ClimbingAreaRepository
@@ -14,6 +15,7 @@ import com.example.climbingapi.repository.UserRepository
 import com.example.climbingapi.repository.WallRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.util.Locale
 
 @Service
@@ -22,7 +24,9 @@ class TickService(
     private val userRepository: UserRepository,
     private val routeRepository: RouteRepository,
     private val wallRepository: WallRepository,
-    private val climbingAreaRepository: ClimbingAreaRepository
+    private val climbingAreaRepository: ClimbingAreaRepository,
+    private val storageService: StorageService,
+    private val imageVariantService: ImageVariantService
 ) {
 
     fun getByUserId(userId: Int, page: Int, size: Int, areaType: String? = null): PagedResponse<UserRoute> {
@@ -73,8 +77,49 @@ class TickService(
     }
 
     fun delete(userId: Int, tickId: Int) {
-        getById(userId, tickId)
+        val tick = getById(userId, tickId)
         tickRepository.deleteById(tickId)
+        tick.photoKey?.let { storageService.delete(it) }
+    }
+
+    /** Adds or replaces a gym tick's photo; the previous photo object is deleted best-effort. */
+    @Transactional
+    fun replacePhoto(userId: Int, tickId: Int, photo: MultipartFile): UserRoute {
+        val tick = getById(userId, tickId)
+        requireGymRoute(tick.routeId!!)
+        val key = uploadPhoto(photo)
+        val updated = try {
+            tickRepository.updatePhotoKey(tickId, key) ?: throw NotFoundException("Tick not found: $tickId")
+        } catch (e: Exception) {
+            storageService.delete(key)
+            throw e
+        }
+        tick.photoKey?.let { storageService.delete(it) }
+        return updated
+    }
+
+    private fun requireGymRoute(routeId: Int) {
+        val route = routeRepository.getById(routeId) ?: throw NotFoundException("Route not found: $routeId")
+        val wall = wallRepository.getById(route.wallId!!)
+            ?: throw NotFoundException("Wall not found: ${route.wallId}")
+        val area = climbingAreaRepository.getById(wall.areaId!!)
+            ?: throw NotFoundException("Climbing area not found: ${wall.areaId}")
+        require(area.type == "gym") { "Photos can only be added to ticks in a climbing gym." }
+    }
+
+    private fun uploadPhoto(photo: MultipartFile): String {
+        if (photo.isEmpty) throw IllegalArgumentException("Photo file is empty.")
+        val contentType = photo.contentType
+        if (contentType == null || contentType !in ALLOWED_PHOTO_TYPES) {
+            throw IllegalArgumentException("Unsupported image type. Allowed: image/jpeg, image/png, image/webp.")
+        }
+        if (photo.size > MAX_PHOTO_BYTES) {
+            throw PayloadTooLargeException("Photo exceeds the maximum size of 5 MB.")
+        }
+        // Unlike walls, keep only the resized variant (no original, no thumbnail): it
+        // bounds the stored size even when a client skips its own compression.
+        val variants = imageVariantService.generate(photo.bytes, contentType)
+        return storageService.upload(variants.optimized, variants.contentType, PHOTO_KEY_PREFIX)
     }
 
     private fun createGymRoute(userId: Int, newRoute: NewGymRouteRequest): Route {
@@ -98,5 +143,11 @@ class TickService(
             holdColor = newRoute.holdColor?.trim()?.ifEmpty { null },
             createdBy = userId
         ))
+    }
+
+    companion object {
+        private val ALLOWED_PHOTO_TYPES = setOf("image/jpeg", "image/png", "image/webp")
+        private const val MAX_PHOTO_BYTES = 5L * 1024 * 1024
+        private const val PHOTO_KEY_PREFIX = "ticks"
     }
 }
