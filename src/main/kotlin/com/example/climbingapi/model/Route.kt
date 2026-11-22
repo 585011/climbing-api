@@ -16,5 +16,6 @@ data class Route(
     val createdAt: OffsetDateTime?,
     val holdColor: String? = null,
     val retiredAt: OffsetDateTime? = null,
-    val createdBy: Int? = null
+    val createdBy: Int? = null,
+    val gradeBand: String? = null
 )

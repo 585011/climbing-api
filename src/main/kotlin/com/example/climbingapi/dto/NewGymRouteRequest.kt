@@ -28,5 +28,10 @@ data class NewGymRouteRequest(
     val holdColor: String? = null,
 
     @field:Size(max = 200, message = "name must be at most 200 characters.")
-    val name: String? = null
+    val name: String? = null,
+
+    /** The gym's grade colour when it grades by colour ranges, e.g. "Yellow"; [grade] stays the exact grade. */
+    @field:Size(max = 30, message = "gradeBand must be at most 30 characters.")
+    @field:Pattern(regexp = "^[\\p{L}\\s\\-]*$", message = "gradeBand may only contain letters, spaces and hyphens.")
+    val gradeBand: String? = null
 )

@@ -28,7 +28,8 @@ class RouteRepository(
             createdAt = createdTime,
             holdColor = rs.getString("hold_color"),
             retiredAt = rs.getObject("retired_at", OffsetDateTime::class.java),
-            createdBy = rs.getObject("created_by") as Int?
+            createdBy = rs.getObject("created_by") as Int?,
+            gradeBand = rs.getString("grade_band")
         )
     }
 
@@ -46,7 +47,8 @@ class RouteRepository(
         description,
         hold_color,
         retired_at,
-        created_by
+        created_by,
+        grade_band
     """.trimIndent()
 
     private fun activeFilter(includeRetired: Boolean) = if (includeRetired) "TRUE" else "retired_at IS NULL"
@@ -166,9 +168,10 @@ class RouteRepository(
                 first_ascendant,
                 description,
                 hold_color,
-                created_by
+                created_by,
+                grade_band
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING $columns
         """.trimIndent()
 
@@ -185,7 +188,8 @@ class RouteRepository(
             route.firstAscendant,
             route.description,
             route.holdColor,
-            route.createdBy
+            route.createdBy,
+            route.gradeBand
         ).firstOrNull() ?: error("INSERT RETURNING returned no row")
     }
 }

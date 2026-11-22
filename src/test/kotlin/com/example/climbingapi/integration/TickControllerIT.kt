@@ -297,6 +297,39 @@ class TickControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `POST tick with newRoute keeps the gradeBand next to the exact grade`() {
+        val json = postJson(
+            ticksUrl(),
+            """{"newRoute":{"wallId":${gymWall()},"grade":"6","style":"sport","gradeBand":" Yellow "}}""",
+            testJwt()
+        )
+        val newRouteId = objectMapper.readTree(json).get("routeId").asInt()
+        mockMvc.perform(get("/api/routes/$newRouteId").with(testJwt()))
+            .andExpect(jsonPath("$.grade").value("6"))
+            .andExpect(jsonPath("$.gradeBand").value("Yellow"))
+    }
+
+    @Test
+    fun `POST tick with newRoute without gradeBand leaves it null`() {
+        val json = postJson(
+            ticksUrl(), """{"newRoute":{"wallId":${gymWall()},"grade":"6","style":"sport"}}""", testJwt()
+        )
+        val newRouteId = objectMapper.readTree(json).get("routeId").asInt()
+        mockMvc.perform(get("/api/routes/$newRouteId").with(testJwt()))
+            .andExpect(jsonPath("$.gradeBand").value(org.hamcrest.Matchers.nullValue()))
+    }
+
+    @Test
+    fun `POST tick with invalid gradeBand returns 400`() {
+        mockMvc.perform(
+            post(ticksUrl()).with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"newRoute":{"wallId":${gymWall()},"grade":"6","style":"sport","gradeBand":"<b>"}}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
     fun `POST tick with newRoute on crag wall returns 400 and creates nothing`() {
         val cragWallId = jdbcTemplate.queryForObject("SELECT wall_id FROM routes WHERE id = ?", Int::class.java, routeId)
         mockMvc.perform(

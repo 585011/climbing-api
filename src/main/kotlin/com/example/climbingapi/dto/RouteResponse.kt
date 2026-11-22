@@ -15,5 +15,7 @@ data class RouteResponse(
     val description: String?,
     val createdAt: OffsetDateTime,
     val holdColor: String?,
-    val retiredAt: OffsetDateTime?
+    val retiredAt: OffsetDateTime?,
+    /** Gym routes only: the gym's grade colour, e.g. "Yellow". [grade] is still the exact grade. */
+    val gradeBand: String?
 )
