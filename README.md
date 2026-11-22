@@ -93,10 +93,12 @@ PostgreSQL
 
 ## Domain model
 
+![Database diagram](docs/climbing-api-relations.png)
+
 ```
 climbing_areas
     └── walls          (FK: area_id → climbing_areas.id, CASCADE)
-            └── routes (FK: wall_id → walls.id, CASCADE)
+            └── routes (FK: wall_id → walls.id, CASCADE; created_by → users.id, SET NULL)
 
 users
     └── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
@@ -142,10 +144,14 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | File | Purpose |
 |---|---|
 | `V1__create_tables.sql` | Full schema (all 5 tables) |
-| `V2__seed_test_data.sql` | Sample wall + 3 routes in Bergen |
-| `V3__seed_climbing_areas.sql` | Sample climbing areas + more walls/routes |
-| `V4__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE constraints, CASCADE deletes, FK indexes, lat/lng precision |
-| `V5__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` |
+| `V2__schema_improvements.sql` | NOT NULL on FK cols, UNIQUE on email + ticks, CASCADE deletes, FK indexes, lat/lng precision |
+| `V3__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` |
+| `V4__widen_description_columns.sql` | Widen `description` on areas, walls and routes, and `walls.approach_info`, to `TEXT` |
+| `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` |
+| `V6__add_wall_image_variants.sql` | Add nullable `optimized_key` and `thumbnail_key` to `walls` |
+| `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; fixed set of `routes.style` values |
+| `V8__add_tick_photo_key.sql` | Add nullable `photo_key VARCHAR(512)` to `user_route_ticks` |
+| `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 
