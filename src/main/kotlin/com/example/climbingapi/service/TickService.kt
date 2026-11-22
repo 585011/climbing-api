@@ -141,7 +141,8 @@ class TickService(
             description = null,
             createdAt = null,
             holdColor = newRoute.holdColor?.trim()?.ifEmpty { null },
-            createdBy = userId
+            createdBy = userId,
+            gradeBand = newRoute.gradeBand?.trim()?.ifEmpty { null }
         ))
     }
 

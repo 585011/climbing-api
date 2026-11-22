@@ -21,7 +21,8 @@ class RouteMapper {
             description = route.description,
             createdAt = route.createdAt!!,
             holdColor = route.holdColor,
-            retiredAt = route.retiredAt
+            retiredAt = route.retiredAt,
+            gradeBand = route.gradeBand
         )
     }
 }

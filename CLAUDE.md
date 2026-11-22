@@ -113,7 +113,7 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
 | GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20` and `?areaType=crag\|gym`; 403 if not owner; 404 if user not found |
-| POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist. Body takes exactly one of `routeId` or `newRoute {wallId, grade, style, holdColor?, name?}` (gym walls only, 400 otherwise) |
+| POST | `/api/users/{userId}/ticks` | Returns 201; 403 if not owner; validates user + route exist. Body takes exactly one of `routeId` or `newRoute {wallId, grade, style, holdColor?, name?, gradeBand?}` (gym walls only, 400 otherwise) |
 | GET | `/api/users/{userId}/ticks/{tickId}` | 403 if not owner; 404 if user or tick not found |
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote; 403 if not owner |
 | PUT | `/api/users/{userId}/ticks/{tickId}/photo` | Add/replace the tick's photo; `multipart/form-data` with an `image` file (JPEG/PNG/WebP, max 5 MB); gym ticks only (400 otherwise); 403 if not owner |
@@ -159,6 +159,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` (R2 object key for the wall image) |
 | `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
 | `V8__add_tick_photo_key.sql` | Add nullable `photo_key VARCHAR(512)` to `user_route_ticks` (R2 object key for a gym tick's photo) |
+| `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
 
 ## Wall images
 
@@ -181,6 +182,10 @@ A gym is a `climbing_areas` row with `type = 'gym'`; its walls are admin-created
 often, so regular users can create one inline while ticking (`newRoute` on the tick request; `created_by` records
 who) and anyone can retire one. Routes are **retired** (`retired_at`), never deleted on rotation, so ticks and
 history survive — retired routes are hidden from route lists and area route counts but still resolvable by id.
+
+Gyms that grade by colour ranges (Yellow = 5+ to 6) store the colour in `routes.grade_band`, set only by `newRoute`
+on a tick. `routes.grade` is always the exact grade, so sorting and clients that ignore the band keep working.
+`PUT /api/routes/{id}` leaves `grade_band` alone. Band definitions live in climbing-mobile's `grades.json`.
 
 ## Related projects
 

@@ -110,6 +110,18 @@ class RouteControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `PUT route leaves gradeBand alone`() {
+        val id = extractId(postJson("/api/routes", """{"wallId":$wallId,"name":"R","grade":"6"}"""))
+        jdbcTemplate.update("UPDATE routes SET grade_band = 'Yellow' WHERE id = ?", id)
+        mockMvc.perform(
+            put("/api/routes/$id").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"wallId":$wallId,"name":"R2","grade":"6"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.gradeBand").value("Yellow"))
+    }
+
+    @Test
     fun `PUT route with unknown id returns 404`() {
         mockMvc.perform(
             put("$baseUrl/999").with(adminJwt()).contentType(MediaType.APPLICATION_JSON)
