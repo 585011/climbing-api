@@ -459,4 +459,34 @@ class TickControllerIT : IntegrationTestBase() {
         )
             .andExpect(status().isForbidden)
     }
+
+    @Test
+    fun `DELETE photo removes it and keeps the tick`() {
+        val tickId = gymTick()
+        mockMvc.perform(multipart(HttpMethod.PUT, photoUrl(tickId)).file(photoPart()).with(testJwt()))
+            .andExpect(status().isOk)
+
+        mockMvc.perform(delete(photoUrl(tickId)).with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(tickId))
+            .andExpect(jsonPath("$.photoUrl").doesNotExist())
+
+        mockMvc.perform(get("${ticksUrl()}/$tickId").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.photoUrl").doesNotExist())
+    }
+
+    @Test
+    fun `DELETE photo on a tick without one returns 200`() {
+        mockMvc.perform(delete(photoUrl(gymTick())).with(testJwt()))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `DELETE photo on another user's tick returns 403`() {
+        val tickId = gymTick()
+
+        mockMvc.perform(delete(photoUrl(tickId)).with(testJwt(sub = "google-oauth2|other-999")))
+            .andExpect(status().isForbidden)
+    }
 }

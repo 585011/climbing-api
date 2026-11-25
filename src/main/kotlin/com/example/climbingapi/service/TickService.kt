@@ -98,6 +98,15 @@ class TickService(
         return updated
     }
 
+    /** Removes the tick's photo, keeping the tick; the object is deleted best-effort. Idempotent. */
+    @Transactional
+    fun deletePhoto(userId: Int, tickId: Int): UserRoute {
+        val tick = getById(userId, tickId)
+        val updated = tickRepository.updatePhotoKey(tickId, null) ?: throw NotFoundException("Tick not found: $tickId")
+        tick.photoKey?.let { storageService.delete(it) }
+        return updated
+    }
+
     private fun requireGymRoute(routeId: Int) {
         val route = routeRepository.getById(routeId) ?: throw NotFoundException("Route not found: $routeId")
         val wall = wallRepository.getById(route.wallId!!)

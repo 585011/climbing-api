@@ -84,7 +84,8 @@ class TickRepository(
         return jdbcTemplate.query(sql, tickRowMapper, tick.style, tick.rating, tick.personalNote, id).firstOrNull()
     }
 
-    fun updatePhotoKey(id: Int, photoKey: String): UserRoute? {
+    /** A null key clears the tick's photo. */
+    fun updatePhotoKey(id: Int, photoKey: String?): UserRoute? {
         val sql = """
             UPDATE user_route_ticks
             SET photo_key = ?

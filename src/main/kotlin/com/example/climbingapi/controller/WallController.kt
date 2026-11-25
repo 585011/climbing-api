@@ -101,6 +101,12 @@ class WallController(
     fun replaceImage(@PathVariable id: Int, @RequestPart("image") image: MultipartFile): WallResponse =
         wallMapper.toResponse(wallService.replaceImage(id, image))
 
+    @Operation(summary = "Remove a wall's image (admin only)")
+    @ApiResponse(responseCode = "404", description = "Wall not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @DeleteMapping("/{id}/image")
+    fun deleteImage(@PathVariable id: Int): WallResponse = wallMapper.toResponse(wallService.deleteImage(id))
+
     @Operation(summary = "Update a wall")
     @ApiResponse(responseCode = "404", description = "Wall not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])

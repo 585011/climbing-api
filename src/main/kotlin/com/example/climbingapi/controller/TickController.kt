@@ -113,6 +113,21 @@ class TickController(
         return tickMapper.toResponse(tickService.replacePhoto(userId, tickId, image))
     }
 
+    @Operation(summary = "Remove a tick's photo", description = "Keeps the tick. Succeeds when there is no photo.")
+    @ApiResponse(responseCode = "403", description = "Not the owner",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "404", description = "User or tick not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @DeleteMapping("/{tickId}/photo")
+    fun deletePhoto(
+        @PathVariable userId: Int,
+        @PathVariable tickId: Int,
+        jwt: JwtAuthenticationToken
+    ): TickResponse {
+        userService.assertOwner(userId, jwt.token.subject)
+        return tickMapper.toResponse(tickService.deletePhoto(userId, tickId))
+    }
+
     @Operation(summary = "Delete a tick")
     @ApiResponse(responseCode = "204", description = "Tick deleted")
     @ApiResponse(responseCode = "403", description = "Not the owner",
