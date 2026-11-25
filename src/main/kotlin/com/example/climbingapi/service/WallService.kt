@@ -99,6 +99,17 @@ class WallService(
         return updated
     }
 
+    /** Removes the wall's image; its objects are deleted best-effort. Idempotent. */
+    @Transactional
+    fun deleteImage(id: Int): Wall {
+        val existing = getById(id)
+        val updated = wallRepository.updateImageKeys(id, null, null, null)
+            ?: throw NotFoundException("Wall not found: $id")
+        listOfNotNull(existing.imageKey, existing.optimizedKey, existing.thumbnailKey)
+            .forEach { storageService.delete(it) }
+        return updated
+    }
+
     fun backfillImages(): BackfillResult {
         var processed = 0
         var failed = 0

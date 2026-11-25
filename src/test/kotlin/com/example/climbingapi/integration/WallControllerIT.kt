@@ -317,6 +317,35 @@ class WallControllerIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `DELETE wall image clears imageUrl and thumbnailUrl`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+        mockMvc.perform(multipart(HttpMethod.PUT, "$baseUrl/1/image").file(imagePart()).with(adminJwt()))
+            .andExpect(status().isOk)
+
+        mockMvc.perform(delete("$baseUrl/1/image").with(adminJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.imageUrl").doesNotExist())
+            .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
+
+        mockMvc.perform(get("$baseUrl/1").with(adminJwt()))
+            .andExpect(jsonPath("$.imageUrl").doesNotExist())
+    }
+
+    @Test
+    fun `DELETE wall image without admin role returns 403`() {
+        postJson(baseUrl, """{"areaId":$areaId,"name":"North Face"}""")
+
+        mockMvc.perform(delete("$baseUrl/1/image").with(testJwt()))
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `DELETE wall image on unknown wall returns 404`() {
+        mockMvc.perform(delete("$baseUrl/999/image").with(adminJwt()))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
     fun `backfill requires admin`() {
         mockMvc.perform(post("$baseUrl/backfill-images"))
             .andExpect(status().isUnauthorized)

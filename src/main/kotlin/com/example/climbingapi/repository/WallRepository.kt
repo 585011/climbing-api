@@ -114,7 +114,8 @@ class WallRepository(
         ).firstOrNull()
     }
 
-    fun updateImageKeys(id: Int, imageKey: String, optimizedKey: String, thumbnailKey: String): Wall? {
+    /** Sets all three image keys; nulls clear the wall's image. */
+    fun updateImageKeys(id: Int, imageKey: String?, optimizedKey: String?, thumbnailKey: String?): Wall? {
         val sql = """
             UPDATE walls
             SET image_key = ?, optimized_key = ?, thumbnail_key = ?

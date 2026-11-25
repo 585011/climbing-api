@@ -101,6 +101,7 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/walls/{wallId}/routes` | 404 if wall not found; retired routes hidden unless `?includeRetired=true` |
 | PUT | `/api/walls/{id}` | Full replace; 404 if not found. Does not touch `image_key` |
 | PUT | `/api/walls/{id}/image` | Admin only; `multipart/form-data` with an `image` file; uploads to R2, replaces old image; 404 if wall not found |
+| DELETE | `/api/walls/{id}/image` | Admin only; clears the wall's image (all three keys) and deletes the objects; returns the wall; 404 if wall not found |
 | GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100); retired routes hidden unless `?includeRetired=true` |
 | GET | `/api/routes/{id}` | 404 if not found |
 | POST | `/api/routes` | Returns 201; validates wall exists |
@@ -117,6 +118,7 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/users/{userId}/ticks/{tickId}` | 403 if not owner; 404 if user or tick not found |
 | PUT | `/api/users/{userId}/ticks/{tickId}` | Update style/rating/personalNote; 403 if not owner |
 | PUT | `/api/users/{userId}/ticks/{tickId}/photo` | Add/replace the tick's photo; `multipart/form-data` with an `image` file (JPEG/PNG/WebP, max 5 MB); gym ticks only (400 otherwise); 403 if not owner |
+| DELETE | `/api/users/{userId}/ticks/{tickId}/photo` | Removes the tick's photo and keeps the tick; returns the tick; 200 also when there was no photo; 403 if not owner |
 | DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found. Also deletes the tick's photo object |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
