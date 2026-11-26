@@ -204,7 +204,7 @@ on a tick. `routes.grade` is always the exact grade, so sorting and clients that
 Design is agreed but unimplemented. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`
 and `docs/adr/0003-follows-without-approval-blocking-deferred.md`. Read them before working on follows, the feed, or kudos.
-The work is split into GitHub issues under the "Following feed" tracking issue.
+The work is split into GitHub issues under the tracking issue #83.
 
 ## Related projects
 
