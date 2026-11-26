@@ -94,18 +94,27 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 
 | Method | Path | Notes |
 |--------|------|-------|
+| GET | `/health` | Unauthenticated liveness probe (Railway healthcheck) |
 | GET | `/api/climbing-areas` | List all areas; supports `?page=0&size=20` (max 100) |
+| GET | `/api/climbing-areas/{id}` | 404 if not found |
+| GET | `/api/climbing-areas/{areaId}/walls` | 404 if area not found |
+| POST | `/api/climbing-areas` | Returns 201 (admin only) |
+| PUT | `/api/climbing-areas/{id}` | Full replace (admin only); 404 if not found |
+| DELETE | `/api/climbing-areas/{id}` | 204 (admin only); cascades to walls, routes, ticks |
 | GET | `/api/walls` | List all walls; supports `?page=0&size=20` (max 100) |
 | GET | `/api/walls/{id}` | 404 if not found |
 | POST | `/api/walls` | Returns 201; `areaId` required. Accepts `application/json`, or `multipart/form-data` with a JSON part `wall` + optional `image` file (admin only) |
 | GET | `/api/walls/{wallId}/routes` | 404 if wall not found; retired routes hidden unless `?includeRetired=true` |
 | PUT | `/api/walls/{id}` | Full replace; 404 if not found. Does not touch `image_key` |
 | PUT | `/api/walls/{id}/image` | Admin only; `multipart/form-data` with an `image` file; uploads to R2, replaces old image; 404 if wall not found |
+| POST | `/api/walls/backfill-images` | Admin only; generates missing optimized/thumbnail variants for existing wall images |
+| DELETE | `/api/walls/{id}` | 204 (admin only); 404 if not found |
 | DELETE | `/api/walls/{id}/image` | Admin only; clears the wall's image (all three keys) and deletes the objects; returns the wall; 404 if wall not found |
 | GET | `/api/routes` | List all routes; supports `?page=0&size=20` (max 100); retired routes hidden unless `?includeRetired=true` |
 | GET | `/api/routes/{id}` | 404 if not found |
 | POST | `/api/routes` | Returns 201; validates wall exists |
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
+| DELETE | `/api/routes/{id}` | 204 (admin only); 404 if not found |
 | PUT | `/api/routes/{id}/retired` | Body `{retired}`. Any user may retire a gym route; un-retire and crag routes are admin only (403) |
 | GET | `/api/users` | List all users; supports `?page=0&size=20` (max 100) |
 | GET | `/api/users/{id}` | 404 if not found |
@@ -159,6 +168,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V3__add_auth0_id.sql` | Add nullable `auth0_id VARCHAR(128)` + unique constraint + index to `users` table |
 | `V4__widen_description_columns.sql` | Widen `walls.description` and `walls.approach_info` to `TEXT` |
 | `V5__add_wall_image_key.sql` | Add nullable `image_key VARCHAR(512)` to `walls` (R2 object key for the wall image) |
+| `V6__add_wall_image_variants.sql` | Add `optimized_key` and `thumbnail_key` to `walls` (resized image variants) |
 | `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
 | `V8__add_tick_photo_key.sql` | Add nullable `photo_key VARCHAR(512)` to `user_route_ticks` (R2 object key for a gym tick's photo) |
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
@@ -189,10 +199,20 @@ Gyms that grade by colour ranges (Yellow = 5+ to 6) store the colour in `routes.
 on a tick. `routes.grade` is always the exact grade, so sorting and clients that ignore the band keep working.
 `PUT /api/routes/{id}` leaves `grade_band` alone. Band definitions live in climbing-mobile's `grades.json`.
 
+## Following feed (planned, not yet built)
+
+Design is agreed but unimplemented. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
+the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`
+and `docs/adr/0003-follows-without-approval-blocking-deferred.md`. Read them before working on follows, the feed, or kudos.
+The work is split into GitHub issues under the tracking issue #83.
+
 ## Related projects
 
 - **climbing-web** — companion frontend at https://github.com/585011/climbing-web.
   CORS is configured in `SecurityConfig.kt` for this frontend. API changes that affect the contract should be coordinated with that repo.
+- **climbing-mobile** — iOS app (iOS only for now), repo `585011/climbing-mobile`. The repo is **private**: never link to it
+  in docs, PRs or issues. It uses the same Auth0 tenant and endpoints as the web client; native requests don't
+  go through CORS. API contract changes must be coordinated with both clients.
 
 ## Code guidelines
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
