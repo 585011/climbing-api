@@ -15,5 +15,5 @@ Today an Auth0 email allowlist means only approved people can log in, so v1 ship
 
 ## Consequences
 
-- **Block must ship before the allowlist is removed.** As designed: removing a Follower blocks them (they can't follow again or see you; following again looks like you don't exist), it also deletes their Kudos on your Sessions, and blocks are permanent until an unblock endpoint is needed.
+- **Block must ship before the allowlist is removed.** As designed: removing a Follower blocks them (they can't follow again or see you; following again looks like you don't exist), it also deletes their Kudos on your Sessions, blocks are permanent until an unblock endpoint is needed, and blocking is one-way: the blocker can still follow and see the blocked climber.
 - Follower and following lists are visible only to their owner, so strangers can't map someone's friend group once signup is open.
