@@ -30,6 +30,28 @@ class UserServiceTest {
     private val sampleUser = User(id = 1, email = "alice@example.com", displayName = "Alice", createdAt = OffsetDateTime.now(), auth0Id = "google-oauth2|alice-123")
 
     @Test
+    fun `getAll without query lists all users`() {
+        `when`(userRepository.getAll(0, 20, null)).thenReturn(listOf(sampleUser))
+        `when`(userRepository.count(null)).thenReturn(1)
+        val result = userService.getAll(0, 20)
+        assertEquals(listOf(sampleUser), result.data)
+        assertEquals(1, result.total)
+    }
+
+    @Test
+    fun `getAll trims the search query before delegating`() {
+        `when`(userRepository.getAll(0, 20, "ali")).thenReturn(listOf(sampleUser))
+        `when`(userRepository.count("ali")).thenReturn(1)
+        val result = userService.getAll(0, 20, "  ali ")
+        assertEquals(listOf(sampleUser), result.data)
+    }
+
+    @Test
+    fun `getAll rejects a query shorter than 2 characters after trimming`() {
+        assertThrows(IllegalArgumentException::class.java) { userService.getAll(0, 20, " a ") }
+    }
+
+    @Test
     fun `getById returns user when found`() {
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
         val result = userService.getById(1)

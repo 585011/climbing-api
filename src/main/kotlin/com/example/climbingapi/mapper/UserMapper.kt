@@ -1,5 +1,6 @@
 package com.example.climbingapi.mapper
 
+import com.example.climbingapi.dto.PublicUserResponse
 import com.example.climbingapi.dto.UserResponse
 import com.example.climbingapi.model.User
 import org.springframework.stereotype.Component
@@ -14,6 +15,13 @@ class UserMapper {
             displayName = user.displayName!!,
             createdAt = user.createdAt!!,
             auth0Id = user.auth0Id!!
+        )
+    }
+
+    fun toPublicResponse(user: User): PublicUserResponse {
+        return PublicUserResponse(
+            id = user.id!!,
+            displayName = user.displayName!!
         )
     }
 }

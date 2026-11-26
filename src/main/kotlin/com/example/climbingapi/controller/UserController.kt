@@ -2,6 +2,7 @@ package com.example.climbingapi.controller
 
 import com.example.climbingapi.dto.CreateUserRequest
 import com.example.climbingapi.dto.PagedResponse
+import com.example.climbingapi.dto.PublicUserResponse
 import com.example.climbingapi.dto.TickResponse
 import com.example.climbingapi.dto.UpdateUserRequest
 import com.example.climbingapi.dto.UserResponse
@@ -47,21 +48,24 @@ class UserController(
     private val tickMapper: TickMapper
 ) {
 
-    @Operation(summary = "List all users")
+    @Operation(summary = "List users (public profiles), optionally searching by display name with ?q= (min 2 characters)")
+    @ApiResponse(responseCode = "400", description = "q shorter than 2 characters",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping
     fun getAll(
         @RequestParam(defaultValue = "0") @Min(0) page: Int,
-        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int
-    ): PagedResponse<UserResponse> {
-        val paged = userService.getAll(page, size)
-        return PagedResponse(paged.data.map { userMapper.toResponse(it) }, paged.page, paged.pageSize, paged.total)
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+        @RequestParam(required = false) q: String?
+    ): PagedResponse<PublicUserResponse> {
+        val paged = userService.getAll(page, size, q)
+        return PagedResponse(paged.data.map { userMapper.toPublicResponse(it) }, paged.page, paged.pageSize, paged.total)
     }
 
-    @Operation(summary = "Get a user by ID")
+    @Operation(summary = "Get a user's public profile by ID (own full profile: GET /api/users/me)")
     @ApiResponse(responseCode = "404", description = "User not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: Int): UserResponse = userMapper.toResponse(userService.getById(id))
+    fun getById(@PathVariable id: Int): PublicUserResponse = userMapper.toPublicResponse(userService.getById(id))
 
     @Operation(summary = "Register or create the authenticated user's profile")
     @ApiResponse(responseCode = "400", description = "Validation error",

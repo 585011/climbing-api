@@ -21,18 +21,30 @@ class UserRepository(
         )
     }
 
-    fun getAll(page: Int, size: Int): List<User> {
+    // Optional case-insensitive substring match on display_name; the pattern is bound twice (null check + ILIKE).
+    private val displayNameFilter = "(?::text IS NULL OR display_name ILIKE ? ESCAPE '\\')"
+
+    /** `%`, `_` and `\` in [query] are matched literally. */
+    private fun likePattern(query: String?): String? =
+        query?.let { "%" + it.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" }
+
+    fun getAll(page: Int, size: Int, query: String? = null): List<User> {
         val sql = """
             SELECT id, email, display_name, created_at, auth0_id
             FROM users
+            WHERE $displayNameFilter
             ORDER BY id
             LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, userRowMapper, size, page * size)
+        val pattern = likePattern(query)
+        return jdbcTemplate.query(sql, userRowMapper, pattern, pattern, size, page * size)
     }
 
-    fun count(): Int {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Int::class.java) ?: 0
+    fun count(query: String? = null): Int {
+        val pattern = likePattern(query)
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE $displayNameFilter", Int::class.java, pattern, pattern
+        ) ?: 0
     }
 
     fun getById(id: Int): User? {

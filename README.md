@@ -167,9 +167,9 @@ Images are stored in Cloudflare R2, not Postgres. Rows hold only the R2 object k
 | PUT | `/api/routes/{id}` | Full replace (admin); leaves `grade_band` alone | 200 / 404 |
 | PUT | `/api/routes/{id}/retired` | Body `{retired}`. Any user may retire a gym route; un-retire and crag routes are admin only | 200 / 403 / 404 |
 | DELETE | `/api/routes/{id}` | Delete route (admin) | 204 / 404 |
-| GET | `/api/users` | List users (`?page=0&size=20`) | 200 |
-| GET | `/api/users/{id}` | Get user by ID | 200 / 404 |
-| GET | `/api/users/me` | Get own profile | 200 / 404 |
+| GET | `/api/users` | List public profiles (`id`, `displayName`); `?page=0&size=20`, `?q=` search by display name (min 2 chars) | 200 / 400 |
+| GET | `/api/users/{id}` | Get a public profile by ID | 200 / 404 |
+| GET | `/api/users/me` | Get own full profile (only read endpoint with email) | 200 / 404 |
 | POST | `/api/users/me` | Self-register (body: `{displayName}`) | 201 / 409 |
 | PUT | `/api/users/{id}` | Full replace (owner only) | 200 / 403 / 404 |
 | DELETE | `/api/users/{id}` | Delete user (owner only) | 204 / 403 / 404 |
