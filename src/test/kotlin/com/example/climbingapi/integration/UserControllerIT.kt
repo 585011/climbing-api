@@ -57,6 +57,7 @@ class UserControllerIT : IntegrationTestBase() {
         mockMvc.perform(get(meUrl).with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.auth0Id").value("google-oauth2|test-user-123"))
+            .andExpect(jsonPath("$.email").value("test@example.com"))
     }
 
     @Test
@@ -72,16 +73,76 @@ class UserControllerIT : IntegrationTestBase() {
         mockMvc.perform(get(baseUrl).with(testJwt()))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.total").value(1))
-            .andExpect(jsonPath("$.data[0].email").value("test@example.com"))
+            .andExpect(jsonPath("$.data[0].id").value(1))
+            .andExpect(jsonPath("$.data[0].displayName").value("Alex Honnold"))
+            .andExpect(jsonPath("$.data[0].email").doesNotExist())
+            .andExpect(jsonPath("$.data[0].auth0Id").doesNotExist())
+            .andExpect(jsonPath("$.data[0].createdAt").doesNotExist())
     }
 
     @Test
     fun `GET user by id returns 200`() {
         postJson(meUrl, validUser)
 
+        mockMvc.perform(get("$baseUrl/1").with(testJwt(sub = "google-oauth2|other-999")))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.displayName").value("Alex Honnold"))
+            .andExpect(jsonPath("$.email").doesNotExist())
+            .andExpect(jsonPath("$.auth0Id").doesNotExist())
+    }
+
+    @Test
+    fun `GET own user by id also returns the public profile only`() {
+        postJson(meUrl, validUser)
+
         mockMvc.perform(get("$baseUrl/1").with(testJwt()))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.email").value("test@example.com"))
+            .andExpect(jsonPath("$.email").doesNotExist())
+            .andExpect(jsonPath("$.auth0Id").doesNotExist())
+    }
+
+    private fun registerUser(displayName: String, n: Int) = postJson(
+        meUrl, """{"displayName":"$displayName","email":"user$n@example.com"}""",
+        testJwt(sub = "google-oauth2|user-$n", email = "user$n@example.com")
+    )
+
+    @Test
+    fun `GET users with q searches display names case-insensitively`() {
+        registerUser("Martin", 1)
+        registerUser("Marte", 2)
+        registerUser("Alex", 3)
+
+        for (q in listOf("mar", "MAR", "  mar  ")) {
+            mockMvc.perform(get(baseUrl).param("q", q).with(testJwt()))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.data[*].displayName").value(org.hamcrest.Matchers.containsInAnyOrder("Martin", "Marte")))
+                .andExpect(jsonPath("$.data[0].email").doesNotExist())
+        }
+    }
+
+    @Test
+    fun `GET users with q matches LIKE wildcards literally`() {
+        registerUser("a_b", 1)
+        registerUser("axb", 2)
+
+        mockMvc.perform(get(baseUrl).param("q", "a_").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.total").value(1))
+            .andExpect(jsonPath("$.data[0].displayName").value("a_b"))
+
+        mockMvc.perform(get(baseUrl).param("q", "%%").with(testJwt()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.total").value(0))
+    }
+
+    @Test
+    fun `GET users with q shorter than 2 characters returns 400`() {
+        for (q in listOf("a", " a ", "")) {
+            mockMvc.perform(get(baseUrl).param("q", q).with(testJwt()))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+        }
     }
 
     @Test

@@ -116,9 +116,9 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
 | DELETE | `/api/routes/{id}` | 204 (admin only); 404 if not found |
 | PUT | `/api/routes/{id}/retired` | Body `{retired}`. Any user may retire a gym route; un-retire and crag routes are admin only (403) |
-| GET | `/api/users` | List all users; supports `?page=0&size=20` (max 100) |
-| GET | `/api/users/{id}` | 404 if not found |
-| GET | `/api/users/me` | Returns the authenticated user's own profile; 404 if not yet registered |
+| GET | `/api/users` | Public profiles (`PublicUserResponse`: `id`, `displayName`); supports `?page=0&size=20` (max 100) and `?q=` display-name search (case-insensitive substring, trimmed, min 2 chars else 400) |
+| GET | `/api/users/{id}` | Public profile only, also for yourself; 404 if not found |
+| GET | `/api/users/me` | Returns the authenticated user's own full profile (incl. email); the only read endpoint exposing `email`/`auth0Id`; 404 if not yet registered |
 | POST | `/api/users/me` | Self-register: creates user from JWT claims (`sub` → auth0Id, `email` claim); body: `{displayName}`; returns 201 |
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |

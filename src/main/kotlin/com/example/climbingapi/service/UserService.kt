@@ -14,10 +14,13 @@ class UserService(
     private val userRepository: UserRepository
 ) {
 
-    fun getAll(page: Int, size: Int): PagedResponse<User> {
+    /** Lists users, optionally filtered by a display-name search [query] (trimmed, at least 2 characters). */
+    fun getAll(page: Int, size: Int, query: String? = null): PagedResponse<User> {
+        val trimmed = query?.trim()
+        require(trimmed == null || trimmed.length >= 2) { "q must be at least 2 characters." }
         val effectiveSize = size.coerceIn(1, 100)
-        val data = userRepository.getAll(page, effectiveSize)
-        val total = userRepository.count()
+        val data = userRepository.getAll(page, effectiveSize, trimmed)
+        val total = userRepository.count(trimmed)
         return PagedResponse(data, page, effectiveSize, total)
     }
 
