@@ -6,6 +6,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.Wall
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.WallRepository
 import com.example.climbingapi.service.ImageVariantService
 import com.example.climbingapi.service.ImageVariants
@@ -21,6 +22,8 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.never
+import org.mockito.ArgumentMatchers.anyList
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.mock.web.MockMultipartFile
@@ -37,6 +40,7 @@ class WallServiceTest {
     @Mock lateinit var routeService: RouteService
     @Mock lateinit var storageService: StorageService
     @Mock lateinit var imageVariantService: ImageVariantService
+    @Mock lateinit var activityRepository: ActivityRepository
 
     @InjectMocks
     lateinit var wallService: WallService
@@ -253,6 +257,23 @@ class WallServiceTest {
     fun `delete throws NotFoundException when wall not found`() {
         `when`(wallRepository.deleteById(99)).thenReturn(false)
         assertThrows(NotFoundException::class.java) { wallService.delete(99) }
+    }
+
+    @Test
+    fun `delete cleans up the Sessions of the wall's Ticks after deleting it`() {
+        `when`(activityRepository.findSessionIdsByWallId(1)).thenReturn(listOf(7, 8))
+        `when`(wallRepository.deleteById(1)).thenReturn(true)
+
+        wallService.delete(1)
+
+        verify(activityRepository).deleteOrRefreshSessions(listOf(7, 8))
+    }
+
+    @Test
+    fun `delete of an unknown wall leaves Sessions alone`() {
+        `when`(wallRepository.deleteById(99)).thenReturn(false)
+        assertThrows(NotFoundException::class.java) { wallService.delete(99) }
+        verify(activityRepository, never()).deleteOrRefreshSessions(anyList())
     }
 
     @Test

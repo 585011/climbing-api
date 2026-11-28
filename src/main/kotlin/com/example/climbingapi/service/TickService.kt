@@ -88,7 +88,7 @@ class TickService(
     fun delete(userId: Int, tickId: Int) {
         val tick = getById(userId, tickId)
         tickRepository.deleteById(tickId)
-        tick.activityId?.let { activityRepository.deleteOrRefreshSession(it) }
+        tick.activityId?.let { activityRepository.deleteOrRefreshSessions(listOf(it)) }
         tick.photoKey?.let { storageService.delete(it) }
     }
 

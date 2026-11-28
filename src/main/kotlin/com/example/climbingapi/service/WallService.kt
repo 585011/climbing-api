@@ -7,6 +7,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.Wall
 import com.example.climbingapi.model.Route
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.WallRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -18,7 +19,8 @@ class WallService(
     private val wallRepository: WallRepository,
     private val routeService: RouteService,
     private val storageService: StorageService,
-    private val imageVariantService: ImageVariantService
+    private val imageVariantService: ImageVariantService,
+    private val activityRepository: ActivityRepository
 ) {
 
     fun getAll(page: Int, size: Int): PagedResponse<Wall> {
@@ -42,8 +44,12 @@ class WallService(
         return routeService.getByWallId(wallId, includeRetired)
     }
 
+    /** The wall's routes and Ticks go with it (DB cascade), so their Sessions are cleaned up like on a Tick delete. */
+    @Transactional
     fun delete(id: Int) {
+        val sessionIds = activityRepository.findSessionIdsByWallId(id)
         if (!wallRepository.deleteById(id)) throw NotFoundException("Wall not found: $id")
+        activityRepository.deleteOrRefreshSessions(sessionIds)
     }
 
     fun update(id: Int, request: UpdateWallRequest): Wall {

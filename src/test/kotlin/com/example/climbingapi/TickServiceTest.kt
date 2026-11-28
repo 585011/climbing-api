@@ -159,7 +159,7 @@ class TickServiceTest {
         tickService.delete(1, 1)
 
         verify(tickRepository).deleteById(1)
-        verify(activityRepository).deleteOrRefreshSession(7)
+        verify(activityRepository).deleteOrRefreshSessions(listOf(7))
     }
 
     @Test

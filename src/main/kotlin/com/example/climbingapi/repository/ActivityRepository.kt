@@ -31,24 +31,48 @@ class ActivityRepository(
             ?: error("Session upsert returned no row")
     }
 
-    /** After a Tick is removed: deletes the Session if it has no Ticks left, else recomputes `last_tick_at`. */
-    fun deleteOrRefreshSession(sessionId: Int) {
-        val deleted = jdbcTemplate.update(
+    /** The Sessions holding Ticks on [routeId]; collect them before the route's Ticks are removed. */
+    fun findSessionIdsByRouteId(routeId: Int): List<Int> =
+        jdbcTemplate.queryForList(
+            "SELECT DISTINCT activity_id FROM user_route_ticks WHERE route_id = ? AND activity_id IS NOT NULL",
+            Int::class.java, routeId
+        )
+
+    /** The Sessions holding Ticks on any route of [wallId]; collect them before the wall's Ticks are removed. */
+    fun findSessionIdsByWallId(wallId: Int): List<Int> {
+        val sql = """
+            SELECT DISTINCT t.activity_id
+            FROM user_route_ticks t
+            JOIN routes r ON r.id = t.route_id
+            WHERE r.wall_id = ? AND t.activity_id IS NOT NULL
+        """.trimIndent()
+        return jdbcTemplate.queryForList(sql, Int::class.java, wallId)
+    }
+
+    /**
+     * After Ticks are removed: deletes each of [sessionIds] that has no Ticks left and recomputes
+     * `last_tick_at` for the rest.
+     */
+    fun deleteOrRefreshSessions(sessionIds: Collection<Int>) {
+        if (sessionIds.isEmpty()) return
+        val ids = sessionIds.distinct().toTypedArray()
+        val placeholders = ids.joinToString(", ") { "?" }
+        jdbcTemplate.update(
             """
             DELETE FROM activities a
-            WHERE a.id = ? AND NOT EXISTS (SELECT 1 FROM user_route_ticks t WHERE t.activity_id = a.id)
+            WHERE a.id IN ($placeholders)
+              AND NOT EXISTS (SELECT 1 FROM user_route_ticks t WHERE t.activity_id = a.id)
             """.trimIndent(),
-            sessionId
+            *ids
         )
-        if (deleted == 0) {
-            jdbcTemplate.update(
-                """
-                UPDATE activities
-                SET last_tick_at = (SELECT MAX(ticked_at) FROM user_route_ticks WHERE activity_id = ?)
-                WHERE id = ?
-                """.trimIndent(),
-                sessionId, sessionId
-            )
-        }
+        // Every Session still left has at least one Tick, so MAX is never NULL.
+        jdbcTemplate.update(
+            """
+            UPDATE activities a
+            SET last_tick_at = (SELECT MAX(t.ticked_at) FROM user_route_ticks t WHERE t.activity_id = a.id)
+            WHERE a.id IN ($placeholders)
+            """.trimIndent(),
+            *ids
+        )
     }
 }

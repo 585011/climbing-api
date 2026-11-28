@@ -156,6 +156,39 @@ class SessionIT : IntegrationTestBase() {
     }
 
     @Test
+    fun `deleting a route deletes Sessions left empty and refreshes the rest`() {
+        // Session at A: Ticks on A1 (an hour earlier) and A2. Session at B: only B1.
+        val a1 = tick(routeA1)
+        val a2 = tick(routeA2)
+        val b1 = tick(routeB1)
+        val sessionA = sessionOf(a1)!!
+        jdbcTemplate.update("UPDATE user_route_ticks SET ticked_at = ticked_at - INTERVAL '1 hour' WHERE id = ?", a1)
+        val a1TickedAt = jdbcTemplate.queryForObject(
+            "SELECT ticked_at FROM user_route_ticks WHERE id = ?", OffsetDateTime::class.java, a1
+        )
+
+        mockMvc.perform(delete("/api/routes/$routeA2").with(adminJwt())).andExpect(status().isNoContent)
+        assertEquals(a1TickedAt, lastTickAt(sessionA))
+
+        mockMvc.perform(delete("/api/routes/$routeB1").with(adminJwt())).andExpect(status().isNoContent)
+        assertEquals(1, sessionCount())
+        assertEquals(sessionA, sessionOf(a1))
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_route_ticks WHERE id IN (?, ?)", Int::class.java, a2, b1))
+    }
+
+    @Test
+    fun `deleting a wall deletes the Sessions left empty`() {
+        tick(routeA1)
+        val gymTick = tick(routeB1)
+        val wallA = jdbcTemplate.queryForObject("SELECT wall_id FROM routes WHERE id = ?", Int::class.java, routeA1)
+
+        mockMvc.perform(delete("/api/walls/$wallA").with(adminJwt())).andExpect(status().isNoContent)
+
+        assertEquals(1, sessionCount())
+        assertEquals(sessionOf(gymTick), jdbcTemplate.queryForObject("SELECT id FROM activities", Int::class.java))
+    }
+
+    @Test
     fun `Ticks from before the Feed keep no Session and can still be deleted`() {
         val old = tick(routeA1)
         jdbcTemplate.update("UPDATE user_route_ticks SET activity_id = NULL WHERE id = ?", old)

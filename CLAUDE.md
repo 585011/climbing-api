@@ -215,7 +215,9 @@ Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`Follo
 
 `TickService.create` upserts the Tick's Session (`ActivityRepository.upsertSession`): same user, the route's area, and the
 `ticked_at` day in `Europe/Oslo` (`TickService.sessionDate`). A new Session snapshots `users.share_activity` into `shared`;
-later Ticks only bump `last_tick_at`. Deleting a Tick deletes its Session if empty, else recomputes `last_tick_at`.
+later Ticks only bump `last_tick_at`. Deleting a Tick deletes its Session if empty, else recomputes `last_tick_at`
+(`ActivityRepository.deleteOrRefreshSessions`). Route and wall deletes cascade Ticks in the DB, so `RouteService.delete`
+and `WallService.delete` collect the affected Session ids first and run the same clean-up afterwards.
 Ticks from before the Feed have `activity_id = NULL`. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`
 and `docs/adr/0003-follows-without-approval-blocking-deferred.md`. Read them before working on follows, the feed, or kudos.
