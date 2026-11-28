@@ -14,7 +14,8 @@ class UserMapper {
             email = user.email!!,
             displayName = user.displayName!!,
             createdAt = user.createdAt!!,
-            auth0Id = user.auth0Id!!
+            auth0Id = user.auth0Id!!,
+            shareActivity = user.shareActivity!!
         )
     }
 

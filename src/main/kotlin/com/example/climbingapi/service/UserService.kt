@@ -55,6 +55,10 @@ class UserService(
         )) ?: throw NotFoundException("User not found: $id")
     }
 
+    fun setShareActivity(id: Int, shareActivity: Boolean): User {
+        return userRepository.updateShareActivity(id, shareActivity) ?: throw NotFoundException("User not found: $id")
+    }
+
     fun delete(id: Int) {
         if (!userRepository.deleteById(id)) throw NotFoundException("User not found: $id")
     }

@@ -122,7 +122,8 @@ climbing_areas (type: crag | gym)
 
 users
     ├── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
-    └── follows (FK: follower_id, followee_id → users.id, CASCADE; PK on the pair; no self-follow)
+    ├── follows (FK: follower_id, followee_id → users.id, CASCADE; PK on the pair; no self-follow)
+    └── activities (Sessions: one per user, area and Oslo day; FK: area_id → climbing_areas.id, CASCADE)
 ```
 
 Deleting a parent cascades to all children (area → walls → routes → ticks; user → ticks). Deleting an area, wall, route or user does not remove image objects from R2; only deleting a tick, a tick photo or a wall image does.
@@ -172,6 +173,7 @@ Images are stored in Cloudflare R2, not Postgres. Rows hold only the R2 object k
 | GET | `/api/users/{id}` | Get a public profile by ID | 200 / 404 |
 | GET | `/api/users/me` | Get own full profile (only read endpoint with email) | 200 / 404 |
 | POST | `/api/users/me` | Self-register (body: `{displayName}`) | 201 / 409 |
+| PUT | `/api/users/me/sharing` | Turn the account-wide Sharing setting on or off (body: `{shareActivity}`) | 200 / 400 / 404 |
 | PUT | `/api/users/me/following/{userId}` | Follow a climber (idempotent) | 204 / 400 / 404 |
 | DELETE | `/api/users/me/following/{userId}` | Unfollow (idempotent, also when not following) | 204 / 404 |
 | GET | `/api/users/me/following` | Climbers you follow, newest first (`?page=0&size=20`) | 200 / 404 |
@@ -204,6 +206,7 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | `V8__add_tick_photo_key.sql` | Add nullable `photo_key` to `user_route_ticks` (R2 object key for a gym tick's photo) |
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
 | `V10__follows.sql` | `follows` table (one-way Follows, `follower_id` → `followee_id`) |
+| `V11__sessions_and_sharing.sql` | `users.share_activity` (off for existing users, on for new); `activities` (Sessions); `user_route_ticks.activity_id` |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 

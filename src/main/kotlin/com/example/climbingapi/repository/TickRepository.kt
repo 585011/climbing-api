@@ -20,13 +20,14 @@ class TickRepository(
             style = rs.getString("style"),
             rating = rs.getObject("rating") as Int?,
             personalNote = rs.getString("personal_note"),
-            photoKey = rs.getString("photo_key")
+            photoKey = rs.getString("photo_key"),
+            activityId = rs.getObject("activity_id") as Int?
         )
     }
 
     fun getById(id: Int): UserRoute? {
         val sql = """
-            SELECT id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key
+            SELECT id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key, activity_id
             FROM user_route_ticks
             WHERE id = ?
         """.trimIndent()
@@ -45,7 +46,7 @@ class TickRepository(
 
     fun findByUserId(userId: Int, page: Int, size: Int, areaType: String? = null): List<UserRoute> {
         val sql = """
-            SELECT t.id, t.user_id, t.route_id, t.ticked_at, t.style, t.rating, t.personal_note, t.photo_key
+            SELECT t.id, t.user_id, t.route_id, t.ticked_at, t.style, t.rating, t.personal_note, t.photo_key, t.activity_id
             FROM user_route_ticks t
             WHERE t.user_id = ?
               AND $areaTypeFilter
@@ -66,7 +67,7 @@ class TickRepository(
         val sql = """
             INSERT INTO user_route_ticks (user_id, route_id, style, rating, personal_note)
             VALUES (?, ?, ?, ?, ?)
-            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key
+            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key, activity_id
         """.trimIndent()
         return jdbcTemplate.query(
             sql, tickRowMapper,
@@ -79,7 +80,7 @@ class TickRepository(
             UPDATE user_route_ticks
             SET style = ?, rating = ?, personal_note = ?
             WHERE id = ?
-            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key
+            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key, activity_id
         """.trimIndent()
         return jdbcTemplate.query(sql, tickRowMapper, tick.style, tick.rating, tick.personalNote, id).firstOrNull()
     }
@@ -90,9 +91,19 @@ class TickRepository(
             UPDATE user_route_ticks
             SET photo_key = ?
             WHERE id = ?
-            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key
+            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key, activity_id
         """.trimIndent()
         return jdbcTemplate.query(sql, tickRowMapper, photoKey, id).firstOrNull()
+    }
+
+    fun setActivityId(id: Int, activityId: Int): UserRoute? {
+        val sql = """
+            UPDATE user_route_ticks
+            SET activity_id = ?
+            WHERE id = ?
+            RETURNING id, user_id, route_id, ticked_at, style, rating, personal_note, photo_key, activity_id
+        """.trimIndent()
+        return jdbcTemplate.query(sql, tickRowMapper, activityId, id).firstOrNull()
     }
 
     fun deleteById(id: Int): Boolean {

@@ -4,6 +4,7 @@ import com.example.climbingapi.dto.CreateUserRequest
 import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.dto.PublicUserResponse
 import com.example.climbingapi.dto.TickResponse
+import com.example.climbingapi.dto.UpdateSharingRequest
 import com.example.climbingapi.dto.UpdateUserRequest
 import com.example.climbingapi.dto.UserResponse
 import com.example.climbingapi.exception.ErrorResponse
@@ -92,6 +93,18 @@ class UserController(
         val user = userService.getByAuth0Id(jwt.token.subject)
             ?: throw NotFoundException("User not found")
         return userMapper.toResponse(user)
+    }
+
+    @Operation(summary = "Turn the authenticated user's account-wide Sharing setting on or off")
+    @ApiResponse(responseCode = "400", description = "Validation error",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "404", description = "User not registered",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @PutMapping("/me/sharing")
+    fun updateSharing(@Valid @RequestBody request: UpdateSharingRequest, jwt: JwtAuthenticationToken): UserResponse {
+        val user = userService.getByAuth0Id(jwt.token.subject)
+            ?: throw NotFoundException("User not found")
+        return userMapper.toResponse(userService.setShareActivity(user.id!!, request.shareActivity!!))
     }
 
     @Operation(summary = "Update a user")

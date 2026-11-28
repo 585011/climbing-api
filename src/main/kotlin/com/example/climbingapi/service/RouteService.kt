@@ -6,6 +6,7 @@ import com.example.climbingapi.dto.UpdateRouteRequest
 import com.example.climbingapi.exception.ForbiddenException
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.Route
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.ClimbingAreaRepository
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.WallRepository
@@ -17,7 +18,8 @@ import java.util.Locale
 class RouteService(
     private val routeRepository: RouteRepository,
     private val wallRepository: WallRepository,
-    private val climbingAreaRepository: ClimbingAreaRepository
+    private val climbingAreaRepository: ClimbingAreaRepository,
+    private val activityRepository: ActivityRepository
 ) {
 
     fun getAll(page: Int, size: Int, includeRetired: Boolean = false): PagedResponse<Route> {
@@ -52,8 +54,12 @@ class RouteService(
         return routeRepository.setRetired(id, retired) ?: throw NotFoundException("Route not found: $id")
     }
 
+    /** The route's Ticks go with it (DB cascade), so their Sessions are cleaned up like on a Tick delete. */
+    @Transactional
     fun delete(id: Int) {
+        val sessionIds = activityRepository.findSessionIdsByRouteId(id)
         if (!routeRepository.deleteById(id)) throw NotFoundException("Route not found: $id")
+        activityRepository.deleteOrRefreshSessions(sessionIds)
     }
 
     @Transactional

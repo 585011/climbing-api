@@ -10,5 +10,7 @@ data class UserRoute(
     val style: String?,
     val rating: Int?,
     val personalNote: String?,
-    val photoKey: String? = null
+    val photoKey: String? = null,
+    /** The Session this Tick belongs to; null for Ticks logged before the Feed existed. */
+    val activityId: Int? = null
 )

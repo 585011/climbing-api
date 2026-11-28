@@ -108,6 +108,19 @@ class UserServiceTest {
     }
 
     @Test
+    fun `setShareActivity returns the updated user`() {
+        val updated = sampleUser.copy(shareActivity = false)
+        `when`(userRepository.updateShareActivity(1, false)).thenReturn(updated)
+        assertEquals(updated, userService.setShareActivity(1, false))
+    }
+
+    @Test
+    fun `setShareActivity throws NotFoundException when user not found`() {
+        `when`(userRepository.updateShareActivity(99, true)).thenReturn(null)
+        assertThrows(NotFoundException::class.java) { userService.setShareActivity(99, true) }
+    }
+
+    @Test
     fun `assertOwner passes when auth0Id matches`() {
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
         userService.assertOwner(1, "google-oauth2|alice-123")

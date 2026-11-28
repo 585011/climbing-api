@@ -7,6 +7,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.ClimbingArea
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.Wall
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.ClimbingAreaRepository
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.WallRepository
@@ -19,6 +20,7 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.ArgumentMatchers.anyList
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import java.time.OffsetDateTime
@@ -29,6 +31,7 @@ class RouteServiceTest {
     @Mock lateinit var routeRepository: RouteRepository
     @Mock lateinit var wallRepository: WallRepository
     @Mock lateinit var climbingAreaRepository: ClimbingAreaRepository
+    @Mock lateinit var activityRepository: ActivityRepository
 
     @InjectMocks
     lateinit var routeService: RouteService
@@ -96,6 +99,23 @@ class RouteServiceTest {
     fun `delete throws NotFoundException when route not found`() {
         `when`(routeRepository.deleteById(99)).thenReturn(false)
         assertThrows(NotFoundException::class.java) { routeService.delete(99) }
+    }
+
+    @Test
+    fun `delete cleans up the Sessions of the route's Ticks after deleting it`() {
+        `when`(activityRepository.findSessionIdsByRouteId(1)).thenReturn(listOf(7, 8))
+        `when`(routeRepository.deleteById(1)).thenReturn(true)
+
+        routeService.delete(1)
+
+        verify(activityRepository).deleteOrRefreshSessions(listOf(7, 8))
+    }
+
+    @Test
+    fun `delete of an unknown route leaves Sessions alone`() {
+        `when`(routeRepository.deleteById(99)).thenReturn(false)
+        assertThrows(NotFoundException::class.java) { routeService.delete(99) }
+        verify(activityRepository, never()).deleteOrRefreshSessions(anyList())
     }
 
     @Test

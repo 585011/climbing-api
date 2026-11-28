@@ -58,6 +58,40 @@ class UserControllerIT : IntegrationTestBase() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.auth0Id").value("google-oauth2|test-user-123"))
             .andExpect(jsonPath("$.email").value("test@example.com"))
+            .andExpect(jsonPath("$.shareActivity").value(true))
+    }
+
+    @Test
+    fun `PUT me sharing toggles the Sharing setting and returns the full profile`() {
+        postJson(meUrl, validUser)
+
+        for (on in listOf(false, true)) {
+            mockMvc.perform(
+                put("$meUrl/sharing").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"shareActivity":$on}""")
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.shareActivity").value(on))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+            mockMvc.perform(get(meUrl).with(testJwt())).andExpect(jsonPath("$.shareActivity").value(on))
+        }
+    }
+
+    @Test
+    fun `PUT me sharing without shareActivity returns 400`() {
+        postJson(meUrl, validUser)
+
+        mockMvc.perform(put("$meUrl/sharing").with(testJwt()).contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `PUT me sharing when not registered returns 404`() {
+        mockMvc.perform(
+            put("$meUrl/sharing").with(testJwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"shareActivity":false}""")
+        ).andExpect(status().isNotFound)
     }
 
     @Test
