@@ -6,6 +6,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.Session
 import com.example.climbingapi.model.User
 import com.example.climbingapi.repository.ActivityRepository
+import com.example.climbingapi.repository.KudosRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class ActivityService(
     private val activityRepository: ActivityRepository,
+    private val kudosRepository: KudosRepository,
     private val userService: UserService
 ) {
 
@@ -37,6 +39,30 @@ class ActivityService(
         if (session.userId != viewerId) throw ForbiddenException("Only the climber can share or hide their Session")
         activityRepository.updateShared(id, shared)
         return withTicks(listOf(session.copy(shared = shared))).single()
+    }
+
+    /** Idempotent. Only on Sessions visible to the giver, and never on your own. */
+    fun giveKudos(viewerAuth0Id: String, id: Int) {
+        val viewerId = requireViewer(viewerAuth0Id).id!!
+        val session = requireVisible(id, viewerId)
+        require(session.userId != viewerId) { "You cannot give Kudos to your own Session." }
+        kudosRepository.give(id, viewerId)
+    }
+
+    /** Idempotent, also when no Kudos were given. */
+    fun removeKudos(viewerAuth0Id: String, id: Int) {
+        val viewerId = requireViewer(viewerAuth0Id).id!!
+        requireVisible(id, viewerId)
+        kudosRepository.remove(id, viewerId)
+    }
+
+    /** The climbers who gave Kudos to a visible Session, most recent first. */
+    fun getKudos(viewerAuth0Id: String, id: Int, page: Int, size: Int): PagedResponse<User> {
+        requireVisible(id, requireViewer(viewerAuth0Id).id!!)
+        val effectiveSize = size.coerceIn(1, 100)
+        return PagedResponse(
+            kudosRepository.findGivers(id, page, effectiveSize), page, effectiveSize, kudosRepository.countGivers(id)
+        )
     }
 
     /** 404 (never 403) when the viewer can't see the Session, so hidden Sessions look like missing ones. */
