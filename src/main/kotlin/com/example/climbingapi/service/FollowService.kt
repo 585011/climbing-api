@@ -4,6 +4,7 @@ import com.example.climbingapi.dto.PagedResponse
 import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.model.User
 import com.example.climbingapi.repository.FollowRepository
+import com.example.climbingapi.repository.KudosRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class FollowService(
     private val followRepository: FollowRepository,
+    private val kudosRepository: KudosRepository,
     private val userService: UserService
 ) {
 
@@ -18,12 +20,25 @@ class FollowService(
     fun follow(callerAuth0Id: String, followeeId: Int) {
         val caller = requireCaller(callerAuth0Id)
         require(caller.id != followeeId) { "You cannot follow yourself." }
-        userService.getById(followeeId)
+        // A climber who blocked the caller looks like they don't exist (ADR-0003).
+        userService.getVisibleById(followeeId, caller.id)
         followRepository.follow(caller.id!!, followeeId)
     }
 
     fun unfollow(callerAuth0Id: String, followeeId: Int) {
         followRepository.unfollow(requireCaller(callerAuth0Id).id!!, followeeId)
+    }
+
+    /**
+     * Removes [followerId] as the caller's Follower, which blocks them (ADR-0003), and deletes their Kudos on the
+     * caller's Sessions. Idempotent; removing someone who doesn't follow the caller changes nothing.
+     */
+    @Transactional
+    fun removeFollower(callerAuth0Id: String, followerId: Int) {
+        val callerId = requireCaller(callerAuth0Id).id!!
+        if (followRepository.block(followerId, callerId)) {
+            kudosRepository.deleteByGiverOnSessionsOf(followerId, callerId)
+        }
     }
 
     fun getFollowing(callerAuth0Id: String, page: Int, size: Int): PagedResponse<User> {

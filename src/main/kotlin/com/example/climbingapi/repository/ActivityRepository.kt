@@ -52,13 +52,13 @@ class ActivityRepository(
 
     /**
      * The visibility rule (ADR-0002), the only place it is written down. A Session is visible to the viewer if the
-     * viewer owns it, or follows its climber while the climber's Sharing setting is on and the Session is shared.
+     * viewer owns it, or has an active Follow of its climber (a block is not one) while the climber's Sharing setting is on and the Session is shared.
      * Takes the viewer's user id twice.
      */
     private val visibleToViewer = """
         (a.user_id = ? OR (
             a.shared AND u.share_activity
-            AND a.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ?)
+            AND a.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ? AND f.status = 'active')
         ))
     """.trimIndent()
 

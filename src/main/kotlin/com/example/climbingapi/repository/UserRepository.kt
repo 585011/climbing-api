@@ -25,26 +25,35 @@ class UserRepository(
     // Optional case-insensitive substring match on display_name; the pattern is bound twice (null check + ILIKE).
     private val displayNameFilter = "(?::text IS NULL OR display_name ILIKE ? ESCAPE '\\')"
 
+    /** Hides users who have blocked the viewer (ADR-0003). Takes the viewer's user id once; null hides no one. */
+    private val notBlockingViewer = """
+        NOT EXISTS (
+            SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = users.id AND f.status = 'blocked'
+        )
+    """.trimIndent()
+
     /** `%`, `_` and `\` in [query] are matched literally. */
     private fun likePattern(query: String?): String? =
         query?.let { "%" + it.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" }
 
-    fun getAll(page: Int, size: Int, query: String? = null): List<User> {
+    /** Users [viewerId] may see; [viewerId] is null for a caller who hasn't registered yet. */
+    fun getAll(page: Int, size: Int, query: String? = null, viewerId: Int? = null): List<User> {
         val sql = """
             SELECT id, email, display_name, created_at, auth0_id, share_activity
             FROM users
-            WHERE $displayNameFilter
+            WHERE $displayNameFilter AND $notBlockingViewer
             ORDER BY id
             LIMIT ? OFFSET ?
         """.trimIndent()
         val pattern = likePattern(query)
-        return jdbcTemplate.query(sql, userRowMapper, pattern, pattern, size, page * size)
+        return jdbcTemplate.query(sql, userRowMapper, pattern, pattern, viewerId, size, page * size)
     }
 
-    fun count(query: String? = null): Int {
+    fun count(query: String? = null, viewerId: Int? = null): Int {
         val pattern = likePattern(query)
         return jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM users WHERE $displayNameFilter", Int::class.java, pattern, pattern
+            "SELECT COUNT(*) FROM users WHERE $displayNameFilter AND $notBlockingViewer",
+            Int::class.java, pattern, pattern, viewerId
         ) ?: 0
     }
 
@@ -55,6 +64,16 @@ class UserRepository(
             WHERE id = ?
         """.trimIndent()
         return jdbcTemplate.query(sql, userRowMapper, id).firstOrNull()
+    }
+
+    /** The user [id], or null if they don't exist or have blocked [viewerId]. */
+    fun getVisibleById(id: Int, viewerId: Int?): User? {
+        val sql = """
+            SELECT id, email, display_name, created_at, auth0_id, share_activity
+            FROM users
+            WHERE id = ? AND $notBlockingViewer
+        """.trimIndent()
+        return jdbcTemplate.query(sql, userRowMapper, id, viewerId).firstOrNull()
     }
 
     fun findByAuth0Id(auth0Id: String): User? {

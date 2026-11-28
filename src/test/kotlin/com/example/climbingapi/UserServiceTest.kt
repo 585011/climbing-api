@@ -31,8 +31,8 @@ class UserServiceTest {
 
     @Test
     fun `getAll without query lists all users`() {
-        `when`(userRepository.getAll(0, 20, null)).thenReturn(listOf(sampleUser))
-        `when`(userRepository.count(null)).thenReturn(1)
+        `when`(userRepository.getAll(0, 20, null, null)).thenReturn(listOf(sampleUser))
+        `when`(userRepository.count(null, null)).thenReturn(1)
         val result = userService.getAll(0, 20)
         assertEquals(listOf(sampleUser), result.data)
         assertEquals(1, result.total)
@@ -40,8 +40,8 @@ class UserServiceTest {
 
     @Test
     fun `getAll trims the search query before delegating`() {
-        `when`(userRepository.getAll(0, 20, "ali")).thenReturn(listOf(sampleUser))
-        `when`(userRepository.count("ali")).thenReturn(1)
+        `when`(userRepository.getAll(0, 20, "ali", null)).thenReturn(listOf(sampleUser))
+        `when`(userRepository.count("ali", null)).thenReturn(1)
         val result = userService.getAll(0, 20, "  ali ")
         assertEquals(listOf(sampleUser), result.data)
     }

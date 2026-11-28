@@ -33,6 +33,14 @@ class KudosRepository(
         jdbcTemplate.update("DELETE FROM kudos WHERE activity_id = ? AND user_id = ?", activityId, userId)
     }
 
+    /** Removes [giverId]'s Kudos on every Session of [ownerId] (used when [ownerId] blocks [giverId]). */
+    fun deleteByGiverOnSessionsOf(giverId: Int, ownerId: Int) {
+        jdbcTemplate.update(
+            "DELETE FROM kudos k USING activities a WHERE k.activity_id = a.id AND k.user_id = ? AND a.user_id = ?",
+            giverId, ownerId
+        )
+    }
+
     /** The climbers who gave Kudos to [activityId], most recent first. */
     fun findGivers(activityId: Int, page: Int, size: Int): List<User> {
         val sql = """

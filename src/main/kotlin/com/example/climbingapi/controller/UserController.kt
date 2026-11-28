@@ -56,9 +56,10 @@ class UserController(
     fun getAll(
         @RequestParam(defaultValue = "0") @Min(0) page: Int,
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
-        @RequestParam(required = false) q: String?
+        @RequestParam(required = false) q: String?,
+        jwt: JwtAuthenticationToken
     ): PagedResponse<PublicUserResponse> {
-        val paged = userService.getAll(page, size, q)
+        val paged = userService.getAll(page, size, q, jwt.token.subject)
         return PagedResponse(paged.data.map { userMapper.toPublicResponse(it) }, paged.page, paged.pageSize, paged.total)
     }
 
@@ -66,7 +67,8 @@ class UserController(
     @ApiResponse(responseCode = "404", description = "User not found",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: Int): PublicUserResponse = userMapper.toPublicResponse(userService.getById(id))
+    fun getById(@PathVariable id: Int, jwt: JwtAuthenticationToken): PublicUserResponse =
+        userMapper.toPublicResponse(userService.getVisibleById(id, jwt.token.subject))
 
     @Operation(summary = "Register or create the authenticated user's profile")
     @ApiResponse(responseCode = "400", description = "Validation error",
