@@ -69,6 +69,21 @@ class FollowController(
         return PagedResponse(paged.data.map { userMapper.toPublicResponse(it) }, paged.page, paged.pageSize, paged.total)
     }
 
+    @Operation(summary = "Remove a Follower, which blocks them (idempotent, also when they don't follow you)",
+        description = "The blocked climber can no longer follow you, find you or see your Sessions, and their " +
+            "Kudos on your Sessions are deleted. The block is saved even if they don't follow you right now. " +
+            "Blocks are permanent.")
+    @ApiResponse(responseCode = "204", description = "Blocked")
+    @ApiResponse(responseCode = "400", description = "Tried to remove yourself",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @ApiResponse(responseCode = "404", description = "Caller not registered, or user not found",
+        content = [Content(schema = Schema(implementation = ErrorResponse::class))])
+    @DeleteMapping("/followers/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeFollower(@PathVariable userId: Int, jwt: JwtAuthenticationToken) {
+        followService.removeFollower(jwt.token.subject, userId)
+    }
+
     @Operation(summary = "List your Followers, most recent first")
     @ApiResponse(responseCode = "404", description = "Caller not registered",
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])

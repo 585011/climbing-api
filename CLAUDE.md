@@ -116,15 +116,16 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | PUT | `/api/routes/{id}` | Full replace; validates wall exists; 404 if not found |
 | DELETE | `/api/routes/{id}` | 204 (admin only); 404 if not found |
 | PUT | `/api/routes/{id}/retired` | Body `{retired}`. Any user may retire a gym route; un-retire and crag routes are admin only (403) |
-| GET | `/api/users` | Public profiles (`PublicUserResponse`: `id`, `displayName`); supports `?page=0&size=20` (max 100) and `?q=` display-name search (case-insensitive substring, trimmed, min 2 chars else 400) |
-| GET | `/api/users/{id}` | Public profile only, also for yourself; 404 if not found |
+| GET | `/api/users` | Public profiles (`PublicUserResponse`: `id`, `displayName`); supports `?page=0&size=20` (max 100) and `?q=` display-name search (case-insensitive substring, trimmed, min 2 chars else 400). Hides users who blocked you |
+| GET | `/api/users/{id}` | Public profile only, also for yourself; 404 if not found or they blocked you |
 | GET | `/api/users/me` | Returns the authenticated user's own full profile (incl. email and `shareActivity`); the only read endpoint exposing `email`/`auth0Id`; 404 if not yet registered |
 | POST | `/api/users/me` | Self-register: creates user from JWT claims (`sub` → auth0Id, `email` claim); body: `{displayName}`; returns 201 |
 | PUT | `/api/users/me/sharing` | Body `{shareActivity}`; returns the full `UserResponse`. Never rewrites existing Sessions' `shared` value; 404 if not registered |
-| PUT | `/api/users/me/following/{userId}` | Follow; 204, idempotent; 400 if yourself; 404 if user not found or caller not registered |
+| PUT | `/api/users/me/following/{userId}` | Follow; 204, idempotent; 400 if yourself; 404 if user not found, they blocked you, or caller not registered |
 | DELETE | `/api/users/me/following/{userId}` | Unfollow; 204, idempotent (also when not following) |
 | GET | `/api/users/me/following` | `PagedResponse<PublicUserResponse>`, newest first. Lists exist only for yourself |
 | GET | `/api/users/me/followers` | `PagedResponse<PublicUserResponse>`, newest first |
+| DELETE | `/api/users/me/followers/{userId}` | Remove a Follower = Block them; also deletes their Kudos on your Sessions; 204, idempotent. The block is saved even if they don't follow you right now; 400 if yourself; 404 if user not found or caller not registered |
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
 | GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20` and `?areaType=crag\|gym`; 403 if not owner; 404 if user not found |
@@ -152,7 +153,7 @@ climbing_areas
 
 users
     ├── user_route_ticks (FK: user_id + route_id, ON DELETE CASCADE, UNIQUE per pair)
-    ├── follows (FK: follower_id + followee_id → users, ON DELETE CASCADE, PK per pair)
+    ├── follows (FK: follower_id + followee_id → users, ON DELETE CASCADE, PK per pair; status active|blocked)
     └── activities (Sessions; FK: user_id, area_id → climbing_areas, ON DELETE CASCADE; UNIQUE user + area + day for type 'session')
             ├── user_route_ticks.activity_id (ON DELETE SET NULL)
             └── kudos (FK: activity_id, user_id → users, ON DELETE CASCADE, PK per pair)
@@ -190,6 +191,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V10__follows.sql` | `follows (follower_id, followee_id, created_at)`; PK on the pair, no self-follow, CASCADE from `users` |
 | `V11__sessions_and_sharing.sql` | `users.share_activity` (false for existing rows, default true); `activities` table (Sessions); `user_route_ticks.activity_id` (no backfill) |
 | `V12__kudos.sql` | `kudos (activity_id, user_id, created_at)`; PK on the pair, CASCADE from `activities` and `users` |
+| `V13__follow_blocks.sql` | `follows.status` (`active`\|`blocked`, default `active`); a Block is a row from the blocked climber to the blocker with `status = 'blocked'` |
 
 ## Wall images
 
@@ -217,9 +219,10 @@ Gyms that grade by colour ranges (Yellow = 5+ to 6) store the colour in `routes.
 on a tick. `routes.grade` is always the exact grade, so sorting and clients that ignore the band keep working.
 `PUT /api/routes/{id}` leaves `grade_band` alone. Band definitions live in climbing-mobile's `grades.json`.
 
-## Following feed (in progress)
+## Following feed
 
-Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`FollowService`) Sessions + the Sharing setting (#79) the Feed (#80, `ActivityController`/`ActivityService`) and Kudos (#81) are built.
+Public profiles (#77), Follows (#78, `FollowController`/`FollowService`), Sessions + the Sharing setting (#79), the Feed
+(#80, `ActivityController`/`ActivityService`), Kudos (#81) and Block (#82) are built.
 
 `TickService.create` upserts the Tick's Session (`ActivityRepository.upsertSession`): same user, the route's area, and the
 `ticked_at` day in `Europe/Oslo` (`TickService.sessionDate`). A new Session snapshots `users.share_activity` into `shared`;
@@ -233,6 +236,15 @@ and the Session's `shared` are true. It is written once, as `visibleToViewer` in
 by `ActivityService.requireVisible`. Anything not visible is a 404, never a 403. `SessionResponse` must never carry a Personal Note.
 Kudos endpoints use the same rule; `kudosCount` and `hasGivenKudos` are subqueries in the Session select, so the Feed stays one query.
 Hiding a Session keeps its Kudos; deleting a Session (its last Tick) deletes them by cascade.
+
+**Block** (#82): `DELETE /api/users/me/followers/{id}` upserts a `follows` row with `status = 'blocked'` (follower = the blocked
+climber, followee = the blocker), also when they don't follow right now, and deletes their Kudos on the blocker's Sessions. Every
+query that reads `follows` as a Follow must filter `status = 'active'`; `unfollow` only deletes active rows, so a blocked climber
+can't clear the block. Anything that lists or looks up users for a viewer (search, `GET /api/users/{id}`, Kudos givers, the
+Followers list) hides blockers with `notBlockingViewer` in `repository/BlockFilter.kt`; `FollowService.follow` uses the same
+lookup, so re-following is a 404. `kudosCount` still counts every Kudos. Giving Kudos is one `INSERT … SELECT` that share-locks the
+Follow (`ActivityRepository.giveKudos`), so it can't race a Block. One-way: the blocker's own row toward the blocked climber is
+unaffected. No unblock endpoint.
 
 Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`

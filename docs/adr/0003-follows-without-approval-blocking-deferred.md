@@ -1,8 +1,11 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Follows need no approval; blocking is deferred until signup opens
+
+> **Update:** Block shipped in #82 as designed below, so it is no longer deferred. Removing someone saves the block even if
+> they don't follow you at that moment, so it can't be dodged by unfollowing just before.
 
 Any climber can search for another by display name and follow them immediately, without the other climber accepting. This keeps the Feed simple (one-way Follows, no pending state). Climbers stay in control through Sharing (ADR-0002), not through approving Followers.
 

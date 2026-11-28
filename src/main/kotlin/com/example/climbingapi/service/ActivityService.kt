@@ -46,7 +46,7 @@ class ActivityService(
         val viewerId = requireViewer(viewerAuth0Id).id!!
         val session = requireVisible(id, viewerId)
         require(session.userId != viewerId) { "You cannot give Kudos to your own Session." }
-        kudosRepository.give(id, viewerId)
+        activityRepository.giveKudos(id, viewerId)
     }
 
     /** Idempotent, also when no Kudos were given. */
@@ -56,12 +56,14 @@ class ActivityService(
         kudosRepository.remove(id, viewerId)
     }
 
-    /** The climbers who gave Kudos to a visible Session, most recent first. */
+    /** The climbers who gave Kudos to a visible Session, most recent first. Climbers who blocked the viewer are left out. */
     fun getKudos(viewerAuth0Id: String, id: Int, page: Int, size: Int): PagedResponse<User> {
-        requireVisible(id, requireViewer(viewerAuth0Id).id!!)
+        val viewerId = requireViewer(viewerAuth0Id).id!!
+        requireVisible(id, viewerId)
         val effectiveSize = size.coerceIn(1, 100)
         return PagedResponse(
-            kudosRepository.findGivers(id, page, effectiveSize), page, effectiveSize, kudosRepository.countGivers(id)
+            kudosRepository.findGivers(id, viewerId, page, effectiveSize), page, effectiveSize,
+            kudosRepository.countGivers(id, viewerId)
         )
     }
 
