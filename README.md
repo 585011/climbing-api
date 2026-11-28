@@ -187,6 +187,9 @@ Images are stored in Cloudflare R2, not Postgres. Rows hold only the R2 object k
 | PUT | `/api/users/{userId}/ticks/{tickId}/photo` | Add/replace photo (multipart `image`; gym ticks only) | 200 / 400 / 403 / 404 |
 | DELETE | `/api/users/{userId}/ticks/{tickId}/photo` | Remove photo, keep tick (200 also when there was none) | 200 / 403 / 404 |
 | DELETE | `/api/users/{userId}/ticks/{tickId}` | Delete tick and its photo | 204 / 403 / 404 |
+| GET | `/api/feed` | Following Feed: own Sessions plus shared Sessions of climbers you follow, most recently active first (`?page=0&size=20`) | 200 / 404 |
+| GET | `/api/activities/{id}` | Get a Session (404 unless visible to you) | 200 / 404 |
+| PUT | `/api/activities/{id}/shared` | Share or hide your Session (body: `{shared}`) | 200 / 400 / 403 / 404 |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 

@@ -1,6 +1,9 @@
 package com.example.climbingapi.repository
 
+import com.example.climbingapi.model.Session
+import com.example.climbingapi.model.SessionTick
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -10,6 +13,111 @@ import java.time.OffsetDateTime
 class ActivityRepository(
     private val jdbcTemplate: JdbcTemplate
 ) {
+
+    private val sessionRowMapper = RowMapper { rs, _ ->
+        Session(
+            id = rs.getInt("id"),
+            userId = rs.getInt("user_id"),
+            userDisplayName = rs.getString("display_name"),
+            areaId = rs.getInt("area_id"),
+            areaName = rs.getString("area_name"),
+            areaType = rs.getString("area_type"),
+            date = rs.getObject("activity_date", LocalDate::class.java),
+            lastTickAt = rs.getObject("last_tick_at", OffsetDateTime::class.java),
+            shared = rs.getBoolean("shared")
+        )
+    }
+
+    private val sessionTickRowMapper = RowMapper { rs, _ ->
+        SessionTick(
+            id = rs.getInt("id"),
+            sessionId = rs.getInt("activity_id"),
+            tickedAt = rs.getObject("ticked_at", OffsetDateTime::class.java),
+            style = rs.getString("style"),
+            rating = rs.getObject("rating") as Int?,
+            photoKey = rs.getString("photo_key"),
+            routeId = rs.getInt("route_id"),
+            routeName = rs.getString("route_name"),
+            grade = rs.getString("grade"),
+            gradeBand = rs.getString("grade_band"),
+            holdColor = rs.getString("hold_color"),
+            routeStyle = rs.getString("route_style"),
+            wallId = rs.getInt("wall_id"),
+            wallName = rs.getString("wall_name"),
+            retired = rs.getBoolean("retired")
+        )
+    }
+
+    /**
+     * The visibility rule (ADR-0002), the only place it is written down. A Session is visible to the viewer if the
+     * viewer owns it, or follows its climber while the climber's Sharing setting is on and the Session is shared.
+     * Takes the viewer's user id twice.
+     */
+    private val visibleToViewer = """
+        (a.user_id = ? OR (
+            a.shared AND u.share_activity
+            AND a.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ?)
+        ))
+    """.trimIndent()
+
+    private val sessionSelect = """
+        SELECT a.id, a.user_id, u.display_name, a.area_id, ca.name AS area_name, ca.type AS area_type,
+               a.activity_date, a.last_tick_at, a.shared
+        FROM activities a
+        JOIN users u ON u.id = a.user_id
+        JOIN climbing_areas ca ON ca.id = a.area_id
+    """.trimIndent()
+
+    /** The Following Feed of [viewerId]: most recently active first. Ticks are not loaded. */
+    fun findFeed(viewerId: Int, page: Int, size: Int): List<Session> {
+        val sql = """
+            $sessionSelect
+            WHERE a.type = 'session' AND $visibleToViewer
+            ORDER BY a.last_tick_at DESC, a.id DESC
+            LIMIT ? OFFSET ?
+        """.trimIndent()
+        return jdbcTemplate.query(sql, sessionRowMapper, viewerId, viewerId, size, page * size)
+    }
+
+    fun countFeed(viewerId: Int): Int {
+        val sql = """
+            SELECT COUNT(*)
+            FROM activities a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.type = 'session' AND $visibleToViewer
+        """.trimIndent()
+        return jdbcTemplate.queryForObject(sql, Int::class.java, viewerId, viewerId) ?: 0
+    }
+
+    /** The Session [id] if [viewerId] may see it, else null (same as a Session that doesn't exist). */
+    fun findVisibleSession(id: Int, viewerId: Int): Session? {
+        val sql = """
+            $sessionSelect
+            WHERE a.id = ? AND a.type = 'session' AND $visibleToViewer
+        """.trimIndent()
+        return jdbcTemplate.query(sql, sessionRowMapper, id, viewerId, viewerId).firstOrNull()
+    }
+
+    /** The Ticks of all [sessionIds] in one query, each Session's Ticks in the order they were logged. */
+    fun findTicksBySessionIds(sessionIds: List<Int>): List<SessionTick> {
+        if (sessionIds.isEmpty()) return emptyList()
+        val placeholders = sessionIds.joinToString(", ") { "?" }
+        val sql = """
+            SELECT t.id, t.activity_id, t.ticked_at, t.style, t.rating, t.photo_key,
+                   r.id AS route_id, r.name AS route_name, r.grade, r.grade_band, r.hold_color, r.style AS route_style,
+                   (r.retired_at IS NOT NULL) AS retired,
+                   w.id AS wall_id, w.name AS wall_name
+            FROM user_route_ticks t
+            JOIN routes r ON r.id = t.route_id
+            JOIN walls w ON w.id = r.wall_id
+            WHERE t.activity_id IN ($placeholders)
+            ORDER BY t.ticked_at, t.id
+        """.trimIndent()
+        return jdbcTemplate.query(sql, sessionTickRowMapper, *sessionIds.toTypedArray())
+    }
+
+    fun updateShared(id: Int, shared: Boolean): Boolean =
+        jdbcTemplate.update("UPDATE activities SET shared = ? WHERE id = ?", shared, id) == 1
 
     /**
      * Finds or creates [userId]'s Session at the area of [routeId] on [activityDate] and returns its id.
