@@ -120,6 +120,10 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/users/{id}` | Public profile only, also for yourself; 404 if not found |
 | GET | `/api/users/me` | Returns the authenticated user's own full profile (incl. email); the only read endpoint exposing `email`/`auth0Id`; 404 if not yet registered |
 | POST | `/api/users/me` | Self-register: creates user from JWT claims (`sub` → auth0Id, `email` claim); body: `{displayName}`; returns 201 |
+| PUT | `/api/users/me/following/{userId}` | Follow; 204, idempotent; 400 if yourself; 404 if user not found or caller not registered |
+| DELETE | `/api/users/me/following/{userId}` | Unfollow; 204, idempotent (also when not following) |
+| GET | `/api/users/me/following` | `PagedResponse<PublicUserResponse>`, newest first. Lists exist only for yourself |
+| GET | `/api/users/me/followers` | `PagedResponse<PublicUserResponse>`, newest first |
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
 | GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20` and `?areaType=crag\|gym`; 403 if not owner; 404 if user not found |
@@ -140,7 +144,8 @@ climbing_areas
             └── routes (FK: wall_id, ON DELETE CASCADE)
 
 users
-    └── user_route_ticks (FK: user_id + route_id, ON DELETE CASCADE, UNIQUE per pair)
+    ├── user_route_ticks (FK: user_id + route_id, ON DELETE CASCADE, UNIQUE per pair)
+    └── follows (FK: follower_id + followee_id → users, ON DELETE CASCADE, PK per pair)
 ```
 
 All five domain types have a complete Controller/Service/Repository stack.
@@ -172,6 +177,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
 | `V8__add_tick_photo_key.sql` | Add nullable `photo_key VARCHAR(512)` to `user_route_ticks` (R2 object key for a gym tick's photo) |
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
+| `V10__follows.sql` | `follows (follower_id, followee_id, created_at)`; PK on the pair, no self-follow, CASCADE from `users` |
 
 ## Wall images
 
@@ -199,9 +205,9 @@ Gyms that grade by colour ranges (Yellow = 5+ to 6) store the colour in `routes.
 on a tick. `routes.grade` is always the exact grade, so sorting and clients that ignore the band keep working.
 `PUT /api/routes/{id}` leaves `grade_band` alone. Band definitions live in climbing-mobile's `grades.json`.
 
-## Following feed (planned, not yet built)
+## Following feed (in progress)
 
-Design is agreed but unimplemented. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
+Design is agreed; public profiles (#77) and Follows (#78, `FollowController`/`FollowService`) are built, the rest is not. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`
 and `docs/adr/0003-follows-without-approval-blocking-deferred.md`. Read them before working on follows, the feed, or kudos.
 The work is split into GitHub issues under the tracking issue #83.
