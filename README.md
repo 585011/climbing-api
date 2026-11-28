@@ -121,7 +121,8 @@ climbing_areas (type: crag | gym)
             └── routes (FK: wall_id → walls.id, CASCADE)
 
 users
-    └── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
+    ├── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
+    └── follows (FK: follower_id, followee_id → users.id, CASCADE; PK on the pair; no self-follow)
 ```
 
 Deleting a parent cascades to all children (area → walls → routes → ticks; user → ticks). Deleting an area, wall, route or user does not remove image objects from R2; only deleting a tick, a tick photo or a wall image does.
@@ -171,6 +172,10 @@ Images are stored in Cloudflare R2, not Postgres. Rows hold only the R2 object k
 | GET | `/api/users/{id}` | Get a public profile by ID | 200 / 404 |
 | GET | `/api/users/me` | Get own full profile (only read endpoint with email) | 200 / 404 |
 | POST | `/api/users/me` | Self-register (body: `{displayName}`) | 201 / 409 |
+| PUT | `/api/users/me/following/{userId}` | Follow a climber (idempotent) | 204 / 400 / 404 |
+| DELETE | `/api/users/me/following/{userId}` | Unfollow (idempotent, also when not following) | 204 / 404 |
+| GET | `/api/users/me/following` | Climbers you follow, newest first (`?page=0&size=20`) | 200 / 404 |
+| GET | `/api/users/me/followers` | Your Followers, newest first (`?page=0&size=20`) | 200 / 404 |
 | PUT | `/api/users/{id}` | Full replace (owner only) | 200 / 403 / 404 |
 | DELETE | `/api/users/{id}` | Delete user (owner only) | 204 / 403 / 404 |
 | GET | `/api/users/{userId}/ticks` | List own ticks (`?page=0&size=20`, `?areaType=crag\|gym`) | 200 / 403 / 404 |
@@ -198,6 +203,7 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | `V7__climbing_gyms.sql` | `climbing_areas.type` (crag\|gym); `routes.hold_color`, `retired_at`, `created_by`; `routes.style` constrained to sport/trad/boulder/toprope/speed |
 | `V8__add_tick_photo_key.sql` | Add nullable `photo_key` to `user_route_ticks` (R2 object key for a gym tick's photo) |
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
+| `V10__follows.sql` | `follows` table (one-way Follows, `follower_id` → `followee_id`) |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 
