@@ -31,14 +31,16 @@ class FollowService(
 
     /**
      * Removes [followerId] as the caller's Follower, which blocks them (ADR-0003), and deletes their Kudos on the
-     * caller's Sessions. Idempotent; removing someone who doesn't follow the caller changes nothing.
+     * caller's Sessions. Idempotent. The block is saved even if they don't follow the caller right now, so it sticks.
      */
     @Transactional
     fun removeFollower(callerAuth0Id: String, followerId: Int) {
         val callerId = requireCaller(callerAuth0Id).id!!
-        if (followRepository.block(followerId, callerId)) {
-            kudosRepository.deleteByGiverOnSessionsOf(followerId, callerId)
-        }
+        require(callerId != followerId) { "You cannot remove yourself as a Follower." }
+        // Not getVisibleById: you can block someone who has blocked you.
+        userService.getById(followerId)
+        followRepository.block(followerId, callerId)
+        kudosRepository.deleteByGiverOnSessionsOf(followerId, callerId)
     }
 
     fun getFollowing(callerAuth0Id: String, page: Int, size: Int): PagedResponse<User> {

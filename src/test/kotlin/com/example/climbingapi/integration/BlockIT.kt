@@ -109,15 +109,51 @@ class BlockIT : IntegrationTestBase() {
     }
 
     @Test
-    fun `removing a non-Follower changes nothing`() {
+    fun `removing a non-Follower still saves the block`() {
         follow(bob, aliceId).andExpect(status().isNoContent)
-        val before = followRows()
 
-        removeFollower(bob, aliceId)
-        removeFollower(bob, 9999)
+        repeat(2) { removeFollower(bob, aliceId) }
 
-        assertEquals(before, followRows())
+        assertEquals(
+            listOf(
+                mapOf("follower_id" to aliceId, "followee_id" to bobId, "status" to "blocked"),
+                mapOf("follower_id" to bobId, "followee_id" to aliceId, "status" to "active")
+            ),
+            followRows()
+        )
+        follow(alice, bobId).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `removing yourself returns 400 and an unknown user 404`() {
+        mockMvc.perform(delete("/api/users/me/followers/$bobId").with(bob)).andExpect(status().isBadRequest)
+        mockMvc.perform(delete("/api/users/me/followers/9999").with(bob)).andExpect(status().isNotFound)
+        assertEquals(emptyList<Map<String, Any>>(), followRows())
+    }
+
+    @Test
+    fun `a blocked climber doesn't see the blocker in Kudos or Follower lists`() {
+        val alicesSession = sessionOf(tick(aliceId, alice))
         follow(alice, bobId).andExpect(status().isNoContent)
+        follow(alice, carolId).andExpect(status().isNoContent)
+        follow(bob, carolId).andExpect(status().isNoContent)
+        val carolsSession = sessionOf(tick(carolId, carol))
+        removeFollower(bob, aliceId)
+        follow(bob, aliceId).andExpect(status().isNoContent)
+        mockMvc.perform(put("/api/activities/$carolsSession/kudos").with(bob)).andExpect(status().isNoContent)
+        mockMvc.perform(put("/api/activities/$alicesSession/kudos").with(bob)).andExpect(status().isNoContent)
+
+        for (session in listOf(carolsSession, alicesSession)) {
+            mockMvc.perform(get("/api/activities/$session/kudos").with(alice))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.data").isEmpty)
+        }
+        mockMvc.perform(get("/api/users/me/followers").with(alice)).andExpect(jsonPath("$.total").value(0))
+
+        // Others still see Bob's Kudos.
+        mockMvc.perform(get("/api/activities/$carolsSession/kudos").with(carol))
+            .andExpect(jsonPath("$.data[0].id").value(bobId))
     }
 
     @Test
@@ -137,8 +173,14 @@ class BlockIT : IntegrationTestBase() {
     }
 
     @Test
-    fun `unregistered caller gets 404`() {
-        mockMvc.perform(delete("/api/users/me/followers/$aliceId").with(testJwt(sub = "auth0|stranger")))
-            .andExpect(status().isNotFound)
+    fun `unregistered caller gets 404 on remove but can still list and view users`() {
+        val stranger = testJwt(sub = "auth0|stranger")
+        follow(alice, bobId).andExpect(status().isNoContent)
+        removeFollower(bob, aliceId)
+
+        mockMvc.perform(delete("/api/users/me/followers/$aliceId").with(stranger)).andExpect(status().isNotFound)
+        mockMvc.perform(get("/api/users").param("q", "Bob").with(stranger)).andExpect(jsonPath("$.total").value(1))
+        mockMvc.perform(get("/api/users").with(stranger)).andExpect(jsonPath("$.total").value(3))
+        mockMvc.perform(get("/api/users/$bobId").with(stranger)).andExpect(status().isOk)
     }
 }

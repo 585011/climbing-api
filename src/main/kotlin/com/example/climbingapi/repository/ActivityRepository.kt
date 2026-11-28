@@ -53,14 +53,20 @@ class ActivityRepository(
     /**
      * The visibility rule (ADR-0002), the only place it is written down. A Session is visible to the viewer if the
      * viewer owns it, or has an active Follow of its climber (a block is not one) while the climber's Sharing setting is on and the Session is shared.
-     * Takes the viewer's user id twice.
+     * Takes the viewer's user id twice. [lockFollow] share-locks the Follow it reads until the transaction ends, so a
+     * write that depends on it can't straddle a concurrent Block.
      */
-    private val visibleToViewer = """
+    private fun visibleToViewer(lockFollow: Boolean = false) = """
         (a.user_id = ? OR (
             a.shared AND u.share_activity
-            AND a.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ? AND f.status = 'active')
+            AND a.user_id IN (
+                SELECT f.followee_id FROM follows f WHERE f.follower_id = ? AND f.status = 'active'
+                ${if (lockFollow) "FOR SHARE" else ""}
+            )
         ))
     """.trimIndent()
+
+    private val visibleToViewer = visibleToViewer()
 
     /** Takes the viewer's user id once, for `has_given_kudos`. */
     private val sessionSelect = """
@@ -101,6 +107,23 @@ class ActivityRepository(
             WHERE a.id = ? AND a.type = 'session' AND $visibleToViewer
         """.trimIndent()
         return jdbcTemplate.query(sql, sessionRowMapper, viewerId, id, viewerId, viewerId).firstOrNull()
+    }
+
+    /**
+     * Gives [viewerId]'s Kudos to Session [id], idempotently, if it is visible to them and not their own. The check and
+     * the insert are one statement and the Follow is share-locked, so a Block that commits meanwhile either waits for
+     * this insert (and then deletes it) or makes it insert nothing.
+     */
+    fun giveKudos(id: Int, viewerId: Int) {
+        val sql = """
+            INSERT INTO kudos (activity_id, user_id)
+            SELECT a.id, ?
+            FROM activities a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.id = ? AND a.type = 'session' AND a.user_id <> ? AND ${visibleToViewer(lockFollow = true)}
+            ON CONFLICT DO NOTHING
+        """.trimIndent()
+        jdbcTemplate.update(sql, viewerId, id, viewerId, viewerId, viewerId)
     }
 
     /** The Ticks of all [sessionIds] in one query, each Session's Ticks in the order they were logged. */

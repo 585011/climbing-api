@@ -38,7 +38,7 @@ class UserService(
     }
 
     /** [getVisibleById] for the caller behind [viewerAuth0Id], who may not have registered yet. */
-    fun getVisibleById(id: Int, viewerAuth0Id: String): User =
+    fun getVisibleByIdForAuth0Id(id: Int, viewerAuth0Id: String): User =
         getVisibleById(id, userRepository.findByAuth0Id(viewerAuth0Id)?.id)
 
     fun getByAuth0Id(auth0Id: String): User? = userRepository.findByAuth0Id(auth0Id)

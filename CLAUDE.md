@@ -125,7 +125,7 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | DELETE | `/api/users/me/following/{userId}` | Unfollow; 204, idempotent (also when not following) |
 | GET | `/api/users/me/following` | `PagedResponse<PublicUserResponse>`, newest first. Lists exist only for yourself |
 | GET | `/api/users/me/followers` | `PagedResponse<PublicUserResponse>`, newest first |
-| DELETE | `/api/users/me/followers/{userId}` | Remove a Follower = Block them; also deletes their Kudos on your Sessions; 204, idempotent (no change if they don't follow you) |
+| DELETE | `/api/users/me/followers/{userId}` | Remove a Follower = Block them; also deletes their Kudos on your Sessions; 204, idempotent. The block is saved even if they don't follow you right now; 400 if yourself; 404 if user not found or caller not registered |
 | PUT | `/api/users/{id}` | Full replace; 403 if not owner; 404 if not found |
 | DELETE | `/api/users/{id}` | 204; 403 if not owner; 404 if not found |
 | GET | `/api/users/{userId}/ticks` | List user's ticked routes; supports `?page=0&size=20` and `?areaType=crag\|gym`; 403 if not owner; 404 if user not found |
@@ -191,7 +191,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V10__follows.sql` | `follows (follower_id, followee_id, created_at)`; PK on the pair, no self-follow, CASCADE from `users` |
 | `V11__sessions_and_sharing.sql` | `users.share_activity` (false for existing rows, default true); `activities` table (Sessions); `user_route_ticks.activity_id` (no backfill) |
 | `V12__kudos.sql` | `kudos (activity_id, user_id, created_at)`; PK on the pair, CASCADE from `activities` and `users` |
-| `V13__follow_blocks.sql` | `follows.status` (`active`\|`blocked`, default `active`); a Block is the removed Follower's row with `status = 'blocked'` |
+| `V13__follow_blocks.sql` | `follows.status` (`active`\|`blocked`, default `active`); a Block is a row from the blocked climber to the blocker with `status = 'blocked'` |
 
 ## Wall images
 
@@ -237,11 +237,14 @@ by `ActivityService.requireVisible`. Anything not visible is a 404, never a 403.
 Kudos endpoints use the same rule; `kudosCount` and `hasGivenKudos` are subqueries in the Session select, so the Feed stays one query.
 Hiding a Session keeps its Kudos; deleting a Session (its last Tick) deletes them by cascade.
 
-**Block** (#82): `DELETE /api/users/me/followers/{id}` flips the Follower's `follows` row to `status = 'blocked'` (follower = the
-blocked climber, followee = the blocker) and deletes their Kudos on the blocker's Sessions. Every query that reads `follows` as a
-Follow must filter `status = 'active'`; `unfollow` only deletes active rows, so a blocked climber can't clear the block. User search
-and `GET /api/users/{id}` hide blockers from the blocked climber (`UserRepository.notBlockingViewer`), and `FollowService.follow`
-uses the same lookup, so re-following is a 404. One-way: the blocker's own row toward the blocked climber is unaffected. No unblock endpoint.
+**Block** (#82): `DELETE /api/users/me/followers/{id}` upserts a `follows` row with `status = 'blocked'` (follower = the blocked
+climber, followee = the blocker), also when they don't follow right now, and deletes their Kudos on the blocker's Sessions. Every
+query that reads `follows` as a Follow must filter `status = 'active'`; `unfollow` only deletes active rows, so a blocked climber
+can't clear the block. Anything that lists or looks up users for a viewer (search, `GET /api/users/{id}`, Kudos givers, the
+Followers list) hides blockers with `notBlockingViewer` in `repository/BlockFilter.kt`; `FollowService.follow` uses the same
+lookup, so re-following is a 404. `kudosCount` still counts every Kudos. Giving Kudos is one `INSERT … SELECT` that share-locks the
+Follow (`ActivityRepository.giveKudos`), so it can't race a Block. One-way: the blocker's own row toward the blocked climber is
+unaffected. No unblock endpoint.
 
 Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`

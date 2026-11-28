@@ -106,7 +106,7 @@ class ActivityServiceTest {
 
         activityService.giveKudos("auth0|alice", 10)
 
-        verify(kudosRepository).give(10, 1)
+        verify(activityRepository).giveKudos(10, 1)
     }
 
     @Test
@@ -115,7 +115,7 @@ class ActivityServiceTest {
         `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 1))
 
         assertThrows(IllegalArgumentException::class.java) { activityService.giveKudos("auth0|alice", 10) }
-        verify(kudosRepository, never()).give(anyInt(), anyInt())
+        verify(activityRepository, never()).giveKudos(anyInt(), anyInt())
     }
 
     @Test
@@ -126,7 +126,7 @@ class ActivityServiceTest {
         assertThrows(NotFoundException::class.java) { activityService.giveKudos("auth0|alice", 10) }
         assertThrows(NotFoundException::class.java) { activityService.removeKudos("auth0|alice", 10) }
         assertThrows(NotFoundException::class.java) { activityService.getKudos("auth0|alice", 10, 0, 20) }
-        verify(kudosRepository, never()).give(anyInt(), anyInt())
+        verify(activityRepository, never()).giveKudos(anyInt(), anyInt())
         verify(kudosRepository, never()).remove(anyInt(), anyInt())
     }
 
@@ -144,8 +144,8 @@ class ActivityServiceTest {
     fun `getKudos pages the givers and clamps size`() {
         `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
         `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 2))
-        `when`(kudosRepository.findGivers(10, 0, 100)).thenReturn(listOf(alice))
-        `when`(kudosRepository.countGivers(10)).thenReturn(1)
+        `when`(kudosRepository.findGivers(10, 1, 0, 100)).thenReturn(listOf(alice))
+        `when`(kudosRepository.countGivers(10, 1)).thenReturn(1)
 
         val result = activityService.getKudos("auth0|alice", 10, 0, 500)
 

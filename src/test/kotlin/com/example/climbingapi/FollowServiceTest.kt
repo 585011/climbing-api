@@ -93,21 +93,29 @@ class FollowServiceTest {
     @Test
     fun `removeFollower blocks the Follower and deletes their Kudos on the caller's Sessions`() {
         `when`(userService.getByAuth0Id("auth0|bob")).thenReturn(bob)
-        `when`(followRepository.block(1, 2)).thenReturn(true)
+        `when`(userService.getById(1)).thenReturn(alice)
 
         followService.removeFollower("auth0|bob", 1)
 
+        verify(followRepository).block(1, 2)
         verify(kudosRepository).deleteByGiverOnSessionsOf(1, 2)
     }
 
     @Test
-    fun `removeFollower of a non-Follower changes nothing`() {
+    fun `removeFollower yourself throws IllegalArgumentException`() {
         `when`(userService.getByAuth0Id("auth0|bob")).thenReturn(bob)
-        `when`(followRepository.block(1, 2)).thenReturn(false)
 
-        followService.removeFollower("auth0|bob", 1)
+        assertThrows(IllegalArgumentException::class.java) { followService.removeFollower("auth0|bob", 2) }
+        verifyNoInteractions(followRepository, kudosRepository)
+    }
 
-        verifyNoInteractions(kudosRepository)
+    @Test
+    fun `removeFollower of an unknown user throws NotFoundException`() {
+        `when`(userService.getByAuth0Id("auth0|bob")).thenReturn(bob)
+        `when`(userService.getById(99)).thenThrow(NotFoundException("User not found: 99"))
+
+        assertThrows(NotFoundException::class.java) { followService.removeFollower("auth0|bob", 99) }
+        verifyNoInteractions(followRepository, kudosRepository)
     }
 
     @Test

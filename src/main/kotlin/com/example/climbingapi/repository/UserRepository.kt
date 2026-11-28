@@ -25,12 +25,7 @@ class UserRepository(
     // Optional case-insensitive substring match on display_name; the pattern is bound twice (null check + ILIKE).
     private val displayNameFilter = "(?::text IS NULL OR display_name ILIKE ? ESCAPE '\\')"
 
-    /** Hides users who have blocked the viewer (ADR-0003). Takes the viewer's user id once; null hides no one. */
-    private val notBlockingViewer = """
-        NOT EXISTS (
-            SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = users.id AND f.status = 'blocked'
-        )
-    """.trimIndent()
+    private val notBlockingViewer = notBlockingViewer("users.id")
 
     /** `%`, `_` and `\` in [query] are matched literally. */
     private fun likePattern(query: String?): String? =

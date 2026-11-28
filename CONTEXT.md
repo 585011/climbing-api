@@ -57,7 +57,7 @@ A climber who follows you.
 _Avoid_: Friend, fan
 
 **Block**:
-What happens when a climber removes a Follower: the Follower can no longer see or follow that climber, and their Kudos on that climber's Sessions are removed.
+What happens when a climber removes a Follower: the Follower can no longer see, find or follow that climber, and their Kudos on that climber's Sessions are removed. It sticks even if the Follower had just unfollowed.
 _Avoid_: Ban, mute, remove (removing a Follower *is* blocking them); also don't use "blocked" for someone Auth0 refuses to log in
 
 **Kudos**:

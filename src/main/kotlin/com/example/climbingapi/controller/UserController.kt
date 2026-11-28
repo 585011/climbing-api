@@ -68,7 +68,7 @@ class UserController(
         content = [Content(schema = Schema(implementation = ErrorResponse::class))])
     @GetMapping("/{id}")
     fun getById(@PathVariable id: Int, jwt: JwtAuthenticationToken): PublicUserResponse =
-        userMapper.toPublicResponse(userService.getVisibleById(id, jwt.token.subject))
+        userMapper.toPublicResponse(userService.getVisibleByIdForAuth0Id(id, jwt.token.subject))
 
     @Operation(summary = "Register or create the authenticated user's profile")
     @ApiResponse(responseCode = "400", description = "Validation error",

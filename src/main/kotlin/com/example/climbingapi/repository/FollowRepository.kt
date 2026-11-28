@@ -37,12 +37,19 @@ class FollowRepository(
         )
     }
 
-    /** Turns [followerId]'s active Follow of [followeeId] into a block. Returns false if there was no active Follow. */
-    fun block(followerId: Int, followeeId: Int): Boolean =
+    /**
+     * Stores a block of [followerId] by [followeeId]: turns their Follow into a block, or saves the block when they
+     * don't follow right now, so it sticks even if they unfollowed a moment before. Idempotent.
+     */
+    fun block(followerId: Int, followeeId: Int) {
         jdbcTemplate.update(
-            "UPDATE follows SET status = 'blocked' WHERE follower_id = ? AND followee_id = ? AND status = 'active'",
+            """
+            INSERT INTO follows (follower_id, followee_id, status) VALUES (?, ?, 'blocked')
+            ON CONFLICT (follower_id, followee_id) DO UPDATE SET status = 'blocked'
+            """.trimIndent(),
             followerId, followeeId
-        ) == 1
+        )
+    }
 
     /** The climbers [followerId] follows, most recently followed first. */
     fun getFollowing(followerId: Int, page: Int, size: Int): List<User> {
@@ -60,19 +67,22 @@ class FollowRepository(
     fun countFollowing(followerId: Int): Int =
         jdbcTemplate.queryForObject("SELECT COUNT(*) FROM follows WHERE follower_id = ? AND status = 'active'", Int::class.java, followerId) ?: 0
 
-    /** The Followers of [followeeId], most recent first. */
+    /** The Followers of [followeeId], most recent first, leaving out Followers who blocked [followeeId]. */
     fun getFollowers(followeeId: Int, page: Int, size: Int): List<User> {
         val sql = """
             SELECT u.id, u.email, u.display_name, u.created_at, u.auth0_id
             FROM follows f
             JOIN users u ON u.id = f.follower_id
-            WHERE f.followee_id = ? AND f.status = 'active'
+            WHERE f.followee_id = ? AND f.status = 'active' AND ${notBlockingViewer("f.follower_id")}
             ORDER BY f.created_at DESC, u.id DESC
             LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, userRowMapper, followeeId, size, page * size)
+        return jdbcTemplate.query(sql, userRowMapper, followeeId, followeeId, size, page * size)
     }
 
     fun countFollowers(followeeId: Int): Int =
-        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM follows WHERE followee_id = ? AND status = 'active'", Int::class.java, followeeId) ?: 0
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM follows f WHERE f.followee_id = ? AND f.status = 'active' AND ${notBlockingViewer("f.follower_id")}",
+            Int::class.java, followeeId, followeeId
+        ) ?: 0
 }

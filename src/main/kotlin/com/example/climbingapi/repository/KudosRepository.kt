@@ -21,14 +21,6 @@ class KudosRepository(
         )
     }
 
-    /** Idempotent: giving Kudos twice keeps the first. */
-    fun give(activityId: Int, userId: Int) {
-        jdbcTemplate.update(
-            "INSERT INTO kudos (activity_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-            activityId, userId
-        )
-    }
-
     fun remove(activityId: Int, userId: Int) {
         jdbcTemplate.update("DELETE FROM kudos WHERE activity_id = ? AND user_id = ?", activityId, userId)
     }
@@ -41,19 +33,22 @@ class KudosRepository(
         )
     }
 
-    /** The climbers who gave Kudos to [activityId], most recent first. */
-    fun findGivers(activityId: Int, page: Int, size: Int): List<User> {
+    /** The climbers who gave Kudos to [activityId], most recent first, leaving out anyone who blocked [viewerId]. */
+    fun findGivers(activityId: Int, viewerId: Int, page: Int, size: Int): List<User> {
         val sql = """
             SELECT u.id, u.email, u.display_name, u.created_at, u.auth0_id
             FROM kudos k
             JOIN users u ON u.id = k.user_id
-            WHERE k.activity_id = ?
+            WHERE k.activity_id = ? AND ${notBlockingViewer("u.id")}
             ORDER BY k.created_at DESC, u.id DESC
             LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, userRowMapper, activityId, size, page * size)
+        return jdbcTemplate.query(sql, userRowMapper, activityId, viewerId, size, page * size)
     }
 
-    fun countGivers(activityId: Int): Int =
-        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM kudos WHERE activity_id = ?", Int::class.java, activityId) ?: 0
+    fun countGivers(activityId: Int, viewerId: Int): Int =
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM kudos k WHERE k.activity_id = ? AND ${notBlockingViewer("k.user_id")}",
+            Int::class.java, activityId, viewerId
+        ) ?: 0
 }
