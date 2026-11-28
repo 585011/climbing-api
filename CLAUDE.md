@@ -134,6 +134,9 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | PUT | `/api/users/{userId}/ticks/{tickId}/photo` | Add/replace the tick's photo; `multipart/form-data` with an `image` file (JPEG/PNG/WebP, max 5 MB); gym ticks only (400 otherwise); 403 if not owner |
 | DELETE | `/api/users/{userId}/ticks/{tickId}/photo` | Removes the tick's photo and keeps the tick; returns the tick; 200 also when there was no photo; 403 if not owner |
 | DELETE | `/api/users/{userId}/ticks/{tickId}` | 204; 403 if not owner; 404 if not found. Also deletes the tick's photo object |
+| GET | `/api/feed` | `PagedResponse<SessionResponse>`: own Sessions (incl. hidden) + visible Sessions of climbers you follow, `last_tick_at DESC, id DESC`; supports `?page=0&size=20` |
+| GET | `/api/activities/{id}` | One `SessionResponse`; 404 unless visible to you |
+| PUT | `/api/activities/{id}/shared` | Body `{shared}`; owner only. 404 if not visible, 403 if visible but not yours. Allowed while the account setting is off |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -211,14 +214,20 @@ on a tick. `routes.grade` is always the exact grade, so sorting and clients that
 
 ## Following feed (in progress)
 
-Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`FollowService`) and Sessions + the Sharing setting (#79) are built; the feed endpoint and Kudos are not.
+Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`FollowService`) Sessions + the Sharing setting (#79) and the Feed (#80, `ActivityController`/`ActivityService`) are built; Kudos are not.
 
 `TickService.create` upserts the Tick's Session (`ActivityRepository.upsertSession`): same user, the route's area, and the
 `ticked_at` day in `Europe/Oslo` (`TickService.sessionDate`). A new Session snapshots `users.share_activity` into `shared`;
 later Ticks only bump `last_tick_at`. Deleting a Tick deletes its Session if empty, else recomputes `last_tick_at`
 (`ActivityRepository.deleteOrRefreshSessions`). Route and wall deletes cascade Ticks in the DB, so `RouteService.delete`
 and `WallService.delete` collect the affected Session ids first and run the same clean-up afterwards.
-Ticks from before the Feed have `activity_id = NULL`. Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
+Ticks from before the Feed have `activity_id = NULL`.
+
+**Visibility rule** (ADR-0002): a Session is visible if you own it, or you follow its climber and both their `share_activity`
+and the Session's `shared` are true. It is written once, as `visibleToViewer` in `ActivityRepository`, and used by the Feed and
+by `ActivityService.requireVisible`. Anything not visible is a 404, never a 403. `SessionResponse` must never carry a Personal Note.
+
+Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`
 and `docs/adr/0003-follows-without-approval-blocking-deferred.md`. Read them before working on follows, the feed, or kudos.
 The work is split into GitHub issues under the tracking issue #83.
