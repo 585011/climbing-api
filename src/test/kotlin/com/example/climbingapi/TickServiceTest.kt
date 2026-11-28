@@ -10,6 +10,7 @@ import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.User
 import com.example.climbingapi.model.UserRoute
 import com.example.climbingapi.model.Wall
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.ClimbingAreaRepository
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.TickRepository
@@ -32,6 +33,7 @@ import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.mock.web.MockMultipartFile
+import java.time.LocalDate
 import java.time.OffsetDateTime
 
 @ExtendWith(MockitoExtension::class)
@@ -44,6 +46,7 @@ class TickServiceTest {
     @Mock lateinit var climbingAreaRepository: ClimbingAreaRepository
     @Mock lateinit var storageService: StorageService
     @Mock lateinit var imageVariantService: ImageVariantService
+    @Mock lateinit var activityRepository: ActivityRepository
 
     @InjectMocks
     lateinit var tickService: TickService
@@ -51,6 +54,15 @@ class TickServiceTest {
     private val sampleUser = User(1, "alice@example.com", "Alice", OffsetDateTime.now(), "google-oauth2|alice-123")
     private val sampleRoute = Route(1, 1, "Test Route", "6a", 20, "sport", 8, null, null, null, OffsetDateTime.now())
     private val sampleTick = UserRoute(1, 1, 1, OffsetDateTime.now(), "onsight", 4, "Good crux at the top")
+
+    /** Stubs joining [tick] to Session 7 and returns the linked Tick. */
+    private fun stubSession(tick: UserRoute): UserRoute {
+        val linked = tick.copy(activityId = 7)
+        `when`(activityRepository.upsertSession(tick.userId!!, tick.routeId!!, TickService.sessionDate(tick.tickedAt!!), tick.tickedAt!!))
+            .thenReturn(7)
+        `when`(tickRepository.setActivityId(tick.id!!, 7)).thenReturn(linked)
+        return linked
+    }
 
     @Test
     fun `getByUserId returns ticks when user exists`() {
@@ -85,10 +97,11 @@ class TickServiceTest {
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
         `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
         `when`(tickRepository.create(UserRoute(null, 1, 1, null, "onsight", 4, "Hard crux"))).thenReturn(expected)
+        val linked = stubSession(expected)
 
         val result = tickService.create(1, request)
 
-        assertEquals(expected, result)
+        assertEquals(linked, result)
     }
 
     @Test
@@ -98,10 +111,11 @@ class TickServiceTest {
         `when`(userRepository.getById(1)).thenReturn(sampleUser)
         `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
         `when`(tickRepository.create(UserRoute(null, 1, 1, null, "free solo", null, null))).thenReturn(expected)
+        val linked = stubSession(expected)
 
         val result = tickService.create(1, request)
 
-        assertEquals(expected, result)
+        assertEquals(linked, result)
     }
 
     @Test
@@ -132,6 +146,44 @@ class TickServiceTest {
         `when`(tickRepository.getById(1)).thenReturn(sampleTick)
 
         tickService.delete(1, 1)
+
+        // A Tick from before the Feed has no Session to clean up.
+        verifyNoInteractions(activityRepository)
+    }
+
+    @Test
+    fun `delete deletes or refreshes the Tick's Session`() {
+        `when`(userRepository.getById(1)).thenReturn(sampleUser)
+        `when`(tickRepository.getById(1)).thenReturn(sampleTick.copy(activityId = 7))
+
+        tickService.delete(1, 1)
+
+        verify(tickRepository).deleteById(1)
+        verify(activityRepository).deleteOrRefreshSession(7)
+    }
+
+    @Test
+    fun `sessionDate is the Norwegian calendar day`() {
+        // Oslo is UTC+2 in summer: 23:30 UTC on 31 May is 01:30 on 1 June.
+        assertEquals(LocalDate.of(2026, 6, 1), TickService.sessionDate(OffsetDateTime.parse("2026-05-31T23:30:00Z")))
+        assertEquals(LocalDate.of(2026, 5, 31), TickService.sessionDate(OffsetDateTime.parse("2026-05-31T21:59:00Z")))
+        // UTC+1 in winter.
+        assertEquals(LocalDate.of(2026, 1, 2), TickService.sessionDate(OffsetDateTime.parse("2026-01-01T23:00:00Z")))
+    }
+
+    @Test
+    fun `create files a late-evening UTC Tick under the next Oslo day`() {
+        val tickedAt = OffsetDateTime.parse("2026-05-31T23:30:00Z")
+        val created = sampleTick.copy(tickedAt = tickedAt)
+        `when`(userRepository.getById(1)).thenReturn(sampleUser)
+        `when`(routeRepository.getById(1)).thenReturn(sampleRoute)
+        `when`(tickRepository.create(UserRoute(null, 1, 1, null, null, null, null))).thenReturn(created)
+        `when`(activityRepository.upsertSession(1, 1, LocalDate.of(2026, 6, 1), tickedAt)).thenReturn(7)
+        `when`(tickRepository.setActivityId(1, 7)).thenReturn(created.copy(activityId = 7))
+
+        val result = tickService.create(1, CreateTickRequest(routeId = 1, style = null, rating = null, personalNote = null))
+
+        assertEquals(7, result.activityId)
     }
 
     private val sampleWall = Wall(5, 1, "Buldring", null, null, null, null, null, OffsetDateTime.now())
@@ -150,8 +202,9 @@ class TickServiceTest {
         `when`(routeRepository.create(Route(null, 5, null, "6B", null, "boulder", null, null, null, null, null,
             holdColor = "Gul", createdBy = 1))).thenReturn(createdRoute)
         `when`(tickRepository.create(UserRoute(null, 1, 42, null, "flash", null, null))).thenReturn(expected)
+        val linked = stubSession(expected)
 
-        assertEquals(expected, tickService.create(1, request))
+        assertEquals(linked, tickService.create(1, request))
     }
 
     @Test

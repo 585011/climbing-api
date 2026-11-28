@@ -8,6 +8,7 @@ import com.example.climbingapi.exception.NotFoundException
 import com.example.climbingapi.exception.PayloadTooLargeException
 import com.example.climbingapi.model.Route
 import com.example.climbingapi.model.UserRoute
+import com.example.climbingapi.repository.ActivityRepository
 import com.example.climbingapi.repository.ClimbingAreaRepository
 import com.example.climbingapi.repository.RouteRepository
 import com.example.climbingapi.repository.TickRepository
@@ -16,6 +17,8 @@ import com.example.climbingapi.repository.WallRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.util.Locale
 
 @Service
@@ -26,7 +29,8 @@ class TickService(
     private val wallRepository: WallRepository,
     private val climbingAreaRepository: ClimbingAreaRepository,
     private val storageService: StorageService,
-    private val imageVariantService: ImageVariantService
+    private val imageVariantService: ImageVariantService,
+    private val activityRepository: ActivityRepository
 ) {
 
     fun getByUserId(userId: Int, page: Int, size: Int, areaType: String? = null): PagedResponse<UserRoute> {
@@ -54,9 +58,9 @@ class TickService(
             routeRepository.getById(request.routeId) ?: throw NotFoundException("Route not found: ${request.routeId}")
             request.routeId
         } else {
-            createGymRoute(userId, request.newRoute!!).id
+            createGymRoute(userId, request.newRoute!!).id!!
         }
-        return tickRepository.create(UserRoute(
+        val tick = tickRepository.create(UserRoute(
             id = null,
             userId = userId,
             routeId = routeId,
@@ -65,6 +69,10 @@ class TickService(
             rating = request.rating,
             personalNote = request.personalNote
         ))
+        // The Tick joins (or starts) its Session: same climber, same area, same Norwegian calendar day.
+        val tickedAt = tick.tickedAt!!
+        val sessionId = activityRepository.upsertSession(userId, routeId, sessionDate(tickedAt), tickedAt)
+        return tickRepository.setActivityId(tick.id!!, sessionId) ?: error("Tick vanished: ${tick.id}")
     }
 
     fun update(userId: Int, tickId: Int, request: UpdateTickRequest): UserRoute {
@@ -76,9 +84,11 @@ class TickService(
         )) ?: throw NotFoundException("Tick not found: $tickId")
     }
 
+    @Transactional
     fun delete(userId: Int, tickId: Int) {
         val tick = getById(userId, tickId)
         tickRepository.deleteById(tickId)
+        tick.activityId?.let { activityRepository.deleteOrRefreshSession(it) }
         tick.photoKey?.let { storageService.delete(it) }
     }
 
@@ -156,6 +166,11 @@ class TickService(
     }
 
     companion object {
+        private val SESSION_ZONE: ZoneId = ZoneId.of("Europe/Oslo")
+
+        /** The calendar day (Norwegian time) of the Session a Tick at [tickedAt] belongs to. */
+        fun sessionDate(tickedAt: OffsetDateTime) = tickedAt.atZoneSameInstant(SESSION_ZONE).toLocalDate()
+
         private val ALLOWED_PHOTO_TYPES = setOf("image/jpeg", "image/png", "image/webp")
         private const val MAX_PHOTO_BYTES = 5L * 1024 * 1024
         private const val PHOTO_KEY_PREFIX = "ticks"

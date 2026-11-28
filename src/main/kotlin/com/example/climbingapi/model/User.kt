@@ -7,5 +7,6 @@ data class User(
     val email: String?,
     val displayName: String?,
     val createdAt: OffsetDateTime?,
-    val auth0Id: String?
+    val auth0Id: String?,
+    val shareActivity: Boolean? = null
 )

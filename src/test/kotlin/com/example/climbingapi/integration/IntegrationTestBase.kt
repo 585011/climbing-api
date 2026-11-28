@@ -49,7 +49,7 @@ abstract class IntegrationTestBase {
     @BeforeEach
     fun resetDatabase() {
         jdbcTemplate.execute(
-            "TRUNCATE follows, user_route_ticks, routes, walls, climbing_areas, users RESTART IDENTITY CASCADE"
+            "TRUNCATE activities, follows, user_route_ticks, routes, walls, climbing_areas, users RESTART IDENTITY CASCADE"
         )
     }
 

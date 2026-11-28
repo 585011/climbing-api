@@ -17,7 +17,8 @@ class UserRepository(
             email = rs.getString("email"),
             displayName = rs.getString("display_name"),
             createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
-            auth0Id = rs.getString("auth0_id")
+            auth0Id = rs.getString("auth0_id"),
+            shareActivity = rs.getBoolean("share_activity")
         )
     }
 
@@ -30,7 +31,7 @@ class UserRepository(
 
     fun getAll(page: Int, size: Int, query: String? = null): List<User> {
         val sql = """
-            SELECT id, email, display_name, created_at, auth0_id
+            SELECT id, email, display_name, created_at, auth0_id, share_activity
             FROM users
             WHERE $displayNameFilter
             ORDER BY id
@@ -49,7 +50,7 @@ class UserRepository(
 
     fun getById(id: Int): User? {
         val sql = """
-            SELECT id, email, display_name, created_at, auth0_id
+            SELECT id, email, display_name, created_at, auth0_id, share_activity
             FROM users
             WHERE id = ?
         """.trimIndent()
@@ -58,7 +59,7 @@ class UserRepository(
 
     fun findByAuth0Id(auth0Id: String): User? {
         val sql = """
-            SELECT id, email, display_name, created_at, auth0_id
+            SELECT id, email, display_name, created_at, auth0_id, share_activity
             FROM users
             WHERE auth0_id = ?
         """.trimIndent()
@@ -69,7 +70,7 @@ class UserRepository(
         val sql = """
             INSERT INTO users (email, display_name, auth0_id)
             VALUES (?, ?, ?)
-            RETURNING id, email, display_name, created_at, auth0_id
+            RETURNING id, email, display_name, created_at, auth0_id, share_activity
         """.trimIndent()
         return jdbcTemplate.query(sql, userRowMapper, user.email, user.displayName, user.auth0Id).firstOrNull()
             ?: error("INSERT RETURNING returned no row")
@@ -80,9 +81,20 @@ class UserRepository(
             UPDATE users
             SET email = ?, display_name = ?
             WHERE id = ?
-            RETURNING id, email, display_name, created_at, auth0_id
+            RETURNING id, email, display_name, created_at, auth0_id, share_activity
         """.trimIndent()
         return jdbcTemplate.query(sql, userRowMapper, user.email, user.displayName, id).firstOrNull()
+    }
+
+    /** Changes only the account setting; existing Sessions keep their own `shared` value (ADR-0002). */
+    fun updateShareActivity(id: Int, shareActivity: Boolean): User? {
+        val sql = """
+            UPDATE users
+            SET share_activity = ?
+            WHERE id = ?
+            RETURNING id, email, display_name, created_at, auth0_id, share_activity
+        """.trimIndent()
+        return jdbcTemplate.query(sql, userRowMapper, shareActivity, id).firstOrNull()
     }
 
     fun deleteById(id: Int): Boolean {

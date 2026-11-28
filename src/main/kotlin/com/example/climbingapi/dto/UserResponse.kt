@@ -7,5 +7,7 @@ data class UserResponse(
     val email: String,
     val displayName: String,
     val createdAt: OffsetDateTime,
-    val auth0Id: String
+    val auth0Id: String,
+    /** Account-wide Sharing setting; the master switch for whether Followers see shared Sessions. */
+    val shareActivity: Boolean
 )
