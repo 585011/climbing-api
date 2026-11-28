@@ -6,6 +6,7 @@ import com.example.climbingapi.model.Session
 import com.example.climbingapi.model.SessionTick
 import com.example.climbingapi.model.User
 import com.example.climbingapi.repository.ActivityRepository
+import com.example.climbingapi.repository.KudosRepository
 import com.example.climbingapi.service.ActivityService
 import com.example.climbingapi.service.UserService
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -27,6 +28,7 @@ import java.time.OffsetDateTime
 class ActivityServiceTest {
 
     @Mock lateinit var activityRepository: ActivityRepository
+    @Mock lateinit var kudosRepository: KudosRepository
     @Mock lateinit var userService: UserService
 
     @InjectMocks
@@ -95,5 +97,59 @@ class ActivityServiceTest {
 
         assertThrows(NotFoundException::class.java) { activityService.setShared("auth0|alice", 10, true) }
         verify(activityRepository, never()).updateShared(anyInt(), anyBoolean())
+    }
+
+    @Test
+    fun `giveKudos on a visible Session of someone else stores it`() {
+        `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
+        `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 2))
+
+        activityService.giveKudos("auth0|alice", 10)
+
+        verify(kudosRepository).give(10, 1)
+    }
+
+    @Test
+    fun `giveKudos on your own Session throws IllegalArgumentException`() {
+        `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
+        `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 1))
+
+        assertThrows(IllegalArgumentException::class.java) { activityService.giveKudos("auth0|alice", 10) }
+        verify(kudosRepository, never()).give(anyInt(), anyInt())
+    }
+
+    @Test
+    fun `Kudos endpoints on a Session the viewer can't see throw NotFoundException`() {
+        `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
+        `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(null)
+
+        assertThrows(NotFoundException::class.java) { activityService.giveKudos("auth0|alice", 10) }
+        assertThrows(NotFoundException::class.java) { activityService.removeKudos("auth0|alice", 10) }
+        assertThrows(NotFoundException::class.java) { activityService.getKudos("auth0|alice", 10, 0, 20) }
+        verify(kudosRepository, never()).give(anyInt(), anyInt())
+        verify(kudosRepository, never()).remove(anyInt(), anyInt())
+    }
+
+    @Test
+    fun `removeKudos deletes the viewer's Kudos`() {
+        `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
+        `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 2))
+
+        activityService.removeKudos("auth0|alice", 10)
+
+        verify(kudosRepository).remove(10, 1)
+    }
+
+    @Test
+    fun `getKudos pages the givers and clamps size`() {
+        `when`(userService.getByAuth0Id("auth0|alice")).thenReturn(alice)
+        `when`(activityRepository.findVisibleSession(10, 1)).thenReturn(session(10, 2))
+        `when`(kudosRepository.findGivers(10, 0, 100)).thenReturn(listOf(alice))
+        `when`(kudosRepository.countGivers(10)).thenReturn(1)
+
+        val result = activityService.getKudos("auth0|alice", 10, 0, 500)
+
+        assertEquals(listOf(alice), result.data)
+        assertEquals(100, result.pageSize)
     }
 }

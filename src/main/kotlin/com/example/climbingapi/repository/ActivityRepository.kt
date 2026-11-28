@@ -24,7 +24,9 @@ class ActivityRepository(
             areaType = rs.getString("area_type"),
             date = rs.getObject("activity_date", LocalDate::class.java),
             lastTickAt = rs.getObject("last_tick_at", OffsetDateTime::class.java),
-            shared = rs.getBoolean("shared")
+            shared = rs.getBoolean("shared"),
+            kudosCount = rs.getInt("kudos_count"),
+            hasGivenKudos = rs.getBoolean("has_given_kudos")
         )
     }
 
@@ -60,9 +62,12 @@ class ActivityRepository(
         ))
     """.trimIndent()
 
+    /** Takes the viewer's user id once, for `has_given_kudos`. */
     private val sessionSelect = """
         SELECT a.id, a.user_id, u.display_name, a.area_id, ca.name AS area_name, ca.type AS area_type,
-               a.activity_date, a.last_tick_at, a.shared
+               a.activity_date, a.last_tick_at, a.shared,
+               (SELECT COUNT(*) FROM kudos k WHERE k.activity_id = a.id) AS kudos_count,
+               EXISTS (SELECT 1 FROM kudos k WHERE k.activity_id = a.id AND k.user_id = ?) AS has_given_kudos
         FROM activities a
         JOIN users u ON u.id = a.user_id
         JOIN climbing_areas ca ON ca.id = a.area_id
@@ -76,7 +81,7 @@ class ActivityRepository(
             ORDER BY a.last_tick_at DESC, a.id DESC
             LIMIT ? OFFSET ?
         """.trimIndent()
-        return jdbcTemplate.query(sql, sessionRowMapper, viewerId, viewerId, size, page * size)
+        return jdbcTemplate.query(sql, sessionRowMapper, viewerId, viewerId, viewerId, size, page * size)
     }
 
     fun countFeed(viewerId: Int): Int {
@@ -95,7 +100,7 @@ class ActivityRepository(
             $sessionSelect
             WHERE a.id = ? AND a.type = 'session' AND $visibleToViewer
         """.trimIndent()
-        return jdbcTemplate.query(sql, sessionRowMapper, id, viewerId, viewerId).firstOrNull()
+        return jdbcTemplate.query(sql, sessionRowMapper, viewerId, id, viewerId, viewerId).firstOrNull()
     }
 
     /** The Ticks of all [sessionIds] in one query, each Session's Ticks in the order they were logged. */

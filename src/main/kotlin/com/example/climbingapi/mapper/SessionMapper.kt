@@ -20,6 +20,8 @@ class SessionMapper(
             date = session.date,
             lastTickAt = session.lastTickAt,
             shared = session.shared,
+            kudosCount = session.kudosCount,
+            hasGivenKudos = session.hasGivenKudos,
             user = PublicUserResponse(id = session.userId, displayName = session.userDisplayName),
             area = SessionAreaResponse(id = session.areaId, name = session.areaName, type = session.areaType),
             ticks = session.ticks.map { tick ->

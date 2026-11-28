@@ -11,6 +11,9 @@ data class SessionResponse(
     val lastTickAt: OffsetDateTime,
     /** The stored per-Session value; only meaningful to the owner. */
     val shared: Boolean,
+    val kudosCount: Int,
+    /** Whether you have given this Session Kudos. */
+    val hasGivenKudos: Boolean,
     val user: PublicUserResponse,
     val area: SessionAreaResponse,
     val ticks: List<SessionTickResponse>

@@ -137,6 +137,9 @@ Kotlin + Spring Boot 3.5 REST API backed by **PostgreSQL 16**. Uses **Spring Dat
 | GET | `/api/feed` | `PagedResponse<SessionResponse>`: own Sessions (incl. hidden) + visible Sessions of climbers you follow, `last_tick_at DESC, id DESC`; supports `?page=0&size=20` |
 | GET | `/api/activities/{id}` | One `SessionResponse`; 404 unless visible to you |
 | PUT | `/api/activities/{id}/shared` | Body `{shared}`; owner only. 404 if not visible, 403 if visible but not yours. Allowed while the account setting is off |
+| PUT | `/api/activities/{id}/kudos` | Give Kudos; 204, idempotent; 400 on your own Session; 404 if not visible |
+| DELETE | `/api/activities/{id}/kudos` | Take back Kudos; 204, idempotent; 404 if not visible |
+| GET | `/api/activities/{id}/kudos` | `PagedResponse<PublicUserResponse>` of givers, newest first; 404 if not visible |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -151,7 +154,8 @@ users
     ├── user_route_ticks (FK: user_id + route_id, ON DELETE CASCADE, UNIQUE per pair)
     ├── follows (FK: follower_id + followee_id → users, ON DELETE CASCADE, PK per pair)
     └── activities (Sessions; FK: user_id, area_id → climbing_areas, ON DELETE CASCADE; UNIQUE user + area + day for type 'session')
-            └── user_route_ticks.activity_id (ON DELETE SET NULL)
+            ├── user_route_ticks.activity_id (ON DELETE SET NULL)
+            └── kudos (FK: activity_id, user_id → users, ON DELETE CASCADE, PK per pair)
 ```
 
 All five domain types have a complete Controller/Service/Repository stack.
@@ -185,6 +189,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. New migrations mus
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
 | `V10__follows.sql` | `follows (follower_id, followee_id, created_at)`; PK on the pair, no self-follow, CASCADE from `users` |
 | `V11__sessions_and_sharing.sql` | `users.share_activity` (false for existing rows, default true); `activities` table (Sessions); `user_route_ticks.activity_id` (no backfill) |
+| `V12__kudos.sql` | `kudos (activity_id, user_id, created_at)`; PK on the pair, CASCADE from `activities` and `users` |
 
 ## Wall images
 
@@ -214,7 +219,7 @@ on a tick. `routes.grade` is always the exact grade, so sorting and clients that
 
 ## Following feed (in progress)
 
-Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`FollowService`) Sessions + the Sharing setting (#79) and the Feed (#80, `ActivityController`/`ActivityService`) are built; Kudos are not.
+Design is agreed; public profiles (#77), Follows (#78, `FollowController`/`FollowService`) Sessions + the Sharing setting (#79) the Feed (#80, `ActivityController`/`ActivityService`) and Kudos (#81) are built.
 
 `TickService.create` upserts the Tick's Session (`ActivityRepository.upsertSession`): same user, the route's area, and the
 `ticked_at` day in `Europe/Oslo` (`TickService.sessionDate`). A new Session snapshots `users.share_activity` into `shared`;
@@ -226,6 +231,8 @@ Ticks from before the Feed have `activity_id = NULL`.
 **Visibility rule** (ADR-0002): a Session is visible if you own it, or you follow its climber and both their `share_activity`
 and the Session's `shared` are true. It is written once, as `visibleToViewer` in `ActivityRepository`, and used by the Feed and
 by `ActivityService.requireVisible`. Anything not visible is a 404, never a 403. `SessionResponse` must never carry a Personal Note.
+Kudos endpoints use the same rule; `kudosCount` and `hasGivenKudos` are subqueries in the Session select, so the Feed stays one query.
+Hiding a Session keeps its Kudos; deleting a Session (its last Tick) deletes them by cascade.
 
 Terms are defined in `CONTEXT.md` (Session, Follow, Block, Kudos, Sharing), and
 the key decisions are in `docs/adr/0001-sessions-are-the-feed-unit.md`, `docs/adr/0002-sharing-snapshot-with-master-switch.md`

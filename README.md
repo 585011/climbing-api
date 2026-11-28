@@ -124,6 +124,7 @@ users
     ├── user_route_ticks (FK: user_id → users.id, route_id → routes.id, CASCADE; UNIQUE per pair)
     ├── follows (FK: follower_id, followee_id → users.id, CASCADE; PK on the pair; no self-follow)
     └── activities (Sessions: one per user, area and Oslo day; FK: area_id → climbing_areas.id, CASCADE)
+            └── kudos (FK: activity_id → activities.id, user_id → users.id, CASCADE; PK on the pair)
 ```
 
 Deleting a parent cascades to all children (area → walls → routes → ticks; user → ticks). Deleting an area, wall, route or user does not remove image objects from R2; only deleting a tick, a tick photo or a wall image does.
@@ -190,6 +191,9 @@ Images are stored in Cloudflare R2, not Postgres. Rows hold only the R2 object k
 | GET | `/api/feed` | Following Feed: own Sessions plus shared Sessions of climbers you follow, most recently active first (`?page=0&size=20`) | 200 / 404 |
 | GET | `/api/activities/{id}` | Get a Session (404 unless visible to you) | 200 / 404 |
 | PUT | `/api/activities/{id}/shared` | Share or hide your Session (body: `{shared}`) | 200 / 400 / 403 / 404 |
+| PUT | `/api/activities/{id}/kudos` | Give Kudos (idempotent; not on your own Session) | 204 / 400 / 404 |
+| DELETE | `/api/activities/{id}/kudos` | Take back Kudos (idempotent) | 204 / 404 |
+| GET | `/api/activities/{id}/kudos` | Who gave Kudos, newest first (`?page=0&size=20`) | 200 / 404 |
 
 All error responses share the shape: `{ timestamp, status, error, errorCode, message, path }`.
 
@@ -210,6 +214,7 @@ Flyway migrations live in `src/main/resources/db/migration/` and run automatical
 | `V9__add_route_grade_band.sql` | Add nullable `grade_band VARCHAR(30)` to `routes` (gym grade colour, e.g. `Yellow`) |
 | `V10__follows.sql` | `follows` table (one-way Follows, `follower_id` → `followee_id`) |
 | `V11__sessions_and_sharing.sql` | `users.share_activity` (off for existing users, on for new); `activities` (Sessions); `user_route_ticks.activity_id` |
+| `V12__kudos.sql` | `kudos` table (one per climber per Session) |
 
 New migrations must follow the `V{n}__{description}.sql` naming convention.
 

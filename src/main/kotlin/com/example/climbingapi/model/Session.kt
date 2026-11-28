@@ -14,6 +14,9 @@ data class Session(
     val date: LocalDate,
     val lastTickAt: OffsetDateTime,
     val shared: Boolean,
+    val kudosCount: Int = 0,
+    /** Whether the viewer the Session was read for has given it Kudos. */
+    val hasGivenKudos: Boolean = false,
     val ticks: List<SessionTick> = emptyList()
 )
 
